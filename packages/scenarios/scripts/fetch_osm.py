@@ -33,4 +33,4 @@ def main(outpath: str) -> None:
     Path(outpath).write_text(json.dumps(fc, indent=2))
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "packages/scenarios/assets/osm-datacenter.geojson")
+    main(sys.argv[1] if len(sys.argv) > 1 else "packages/scenarios/assets/osm-datacenter.json")

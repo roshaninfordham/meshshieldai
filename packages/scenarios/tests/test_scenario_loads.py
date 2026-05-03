@@ -19,6 +19,6 @@ def test_policy_thresholds():
     assert "auto_action_min_conf" in p["clauses"]
 
 def test_osm_geojson_has_polygon():
-    g = json.loads((ROOT / "assets/osm-datacenter.geojson").read_text())
+    g = json.loads((ROOT / "assets/osm-datacenter.json").read_text())
     assert g["type"] == "FeatureCollection"
     assert any(f["geometry"]["type"] in ("Polygon", "MultiPolygon") for f in g["features"])

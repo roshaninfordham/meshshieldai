@@ -1,2 +1,2 @@
-const nextConfig = { reactStrictMode: true, transpilePackages: ["@meshshield/protocol"] };
+const nextConfig = { reactStrictMode: true, transpilePackages: ["@meshshield/protocol", "@meshshield/scenarios"] };
 export default nextConfig;

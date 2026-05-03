@@ -4,7 +4,7 @@ import { Map as MapLibre } from "react-map-gl/maplibre";
 import { ScatterplotLayer, GeoJsonLayer } from "@deck.gl/layers";
 import { useMemo } from "react";
 import { useMeshStore } from "@/lib/store";
-import osm from "@meshshield/scenarios/assets/osm-datacenter.geojson";
+import osm from "@meshshield/scenarios/assets/osm-datacenter.json";
 
 const INITIAL = { longitude: -122.1697, latitude: 37.4275, zoom: 16, pitch: 45, bearing: 0 };
 

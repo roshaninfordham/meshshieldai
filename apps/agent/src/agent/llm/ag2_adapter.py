@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 import json
+import logging
 import asyncio
 from typing import Callable, Protocol
+
+log = logging.getLogger("agent.llm")
 
 
 class _LLMLike(Protocol):
@@ -37,7 +41,7 @@ class _AG2LLM:
             streaming=False,
             api_key=key,
             base_url="https://openrouter.ai/api/v1",
-            max_completion_tokens=1024,
+            max_completion_tokens=4096,
         )
 
     async def ask(self, name: str, prompt: str) -> str:
@@ -74,9 +78,65 @@ class LLMAdapter:
 
     async def ask_json(self, agent_name: str, prompt: str) -> dict:
         text = await self.ask(agent_name, prompt)
-        # tolerate fenced code or stray prose by extracting first {...} block
-        s = text.find("{")
-        e = text.rfind("}")
-        if s == -1 or e == -1:
-            raise ValueError(f"no JSON in agent output: {text!r}")
-        return json.loads(text[s : e + 1])
+        return _extract_json(text, agent_name)
+
+
+_FENCE = re.compile(r"```(?:json|JSON)?\s*([\s\S]*?)\s*```")
+
+
+def _extract_json(text: str, agent_name: str = "?") -> dict:
+    """Robustly extract a JSON object from LLM output that may include prose,
+    markdown fences, or trailing commentary. Strategy:
+      1. If ```json ... ``` (or plain ```...```) fences exist, take the largest
+         fenced block and try to parse it.
+      2. Otherwise, scan for the first balanced {...} block and parse that.
+    Raises ValueError with the raw text on any failure (so logs are useful)."""
+    candidates: list[str] = []
+    for m in _FENCE.finditer(text):
+        candidates.append(m.group(1).strip())
+    candidates.sort(key=len, reverse=True)
+    for c in candidates:
+        try:
+            return json.loads(c)
+        except json.JSONDecodeError:
+            continue
+
+    block = _first_balanced_object(text)
+    if block is not None:
+        try:
+            return json.loads(block)
+        except json.JSONDecodeError as exc:
+            log.warning("agent=%s ask_json failed on balanced block (%s); raw head=%r",
+                        agent_name, exc, text[:240])
+
+    raise ValueError(f"no parseable JSON in agent={agent_name} output: {text[:400]!r}")
+
+
+def _first_balanced_object(text: str) -> str | None:
+    depth = 0
+    start = -1
+    in_str = False
+    esc = False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+            continue
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if depth == 0:
+                continue
+            depth -= 1
+            if depth == 0 and start != -1:
+                return text[start : i + 1]
+    return None
