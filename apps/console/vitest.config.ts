@@ -13,5 +13,10 @@ export default defineConfig({
       "@meshshield/scenarios/assets/osm-datacenter.geojson": path.resolve(__dirname, "tests/__mocks__/osm-datacenter.ts"),
     },
   },
-  test: { environment: "jsdom", globals: true, setupFiles: ["./tests/setup.ts"] },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./tests/setup.ts"],
+    exclude: ["node_modules", "e2e/**", "**/*.e2e.{ts,tsx}"],
+  },
 });
