@@ -6,11 +6,41 @@ import { AgentCard } from "./AgentCard";
 import { useMeshStore, type AgentName } from "@/lib/store";
 import type { HighlightTarget } from "@/lib/demo/script";
 
-const PIPELINE: Array<{ name: AgentName; label: string; model: string; highlightTarget: HighlightTarget }> = [
-  { name: "prioritizer", label: "Threat Prioritizer",    model: "gemini-2.5-flash", highlightTarget: "theatre-prioritizer" },
-  { name: "allocator",   label: "Interceptor Allocator", model: "gemini-2.5-flash", highlightTarget: "theatre-allocator" },
-  { name: "justifier",   label: "Justifier",             model: "gemini-2.5-flash", highlightTarget: "theatre-justifier" },
-  { name: "escalator",   label: "Escalation Officer",    model: "gemini-2.5-flash", highlightTarget: "theatre-escalator" },
+const PIPELINE: Array<{
+  name: AgentName;
+  label: string;
+  model: string;
+  highlightTarget: HighlightTarget;
+  usesLabel: string;
+}> = [
+  {
+    name: "prioritizer",
+    label: "Threat Prioritizer",
+    model: "gemini-2.5-flash",
+    highlightTarget: "theatre-prioritizer",
+    usesLabel: "snapshot store",
+  },
+  {
+    name: "allocator",
+    label: "Interceptor Allocator",
+    model: "gemini-2.5-flash",
+    highlightTarget: "theatre-allocator",
+    usesLabel: "Daytona sandbox · interceptor catalog",
+  },
+  {
+    name: "justifier",
+    label: "Justifier",
+    model: "gemini-2.5-flash",
+    highlightTarget: "theatre-justifier",
+    usesLabel: "Tavily news API · policy clauses",
+  },
+  {
+    name: "escalator",
+    label: "Escalation Officer",
+    model: "gemini-2.5-flash",
+    highlightTarget: "theatre-escalator",
+    usesLabel: "policy thresholds (deterministic gate)",
+  },
 ];
 
 export function ActivityTheatre() {
@@ -29,6 +59,7 @@ export function ActivityTheatre() {
           tools: agents[a.name].tools,
           lastMessage: agents[a.name].lastMessage,
           highlighted: currentHighlight === a.highlightTarget,
+          usesLabel: a.usesLabel,
         },
       },
       type: "agent",
@@ -46,7 +77,7 @@ export function ActivityTheatre() {
   }), []);
 
   return (
-    <div className="h-[420px] rounded-xl bg-panel/40 ring-1 ring-white/10">
+    <div className="h-[300px] rounded-xl bg-panel/40 ring-1 ring-white/10">
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView>
         <Background gap={16} color="#1f2937" />
         <Controls position="top-right" />

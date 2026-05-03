@@ -20,4 +20,18 @@ describe("AgentCard", () => {
     expect(screen.getByText(/simulate_intercept_path/)).toBeInTheDocument();
     expect(screen.getByText(/12ms/)).toBeInTheDocument();
   });
+
+  it("renders usesLabel chip when provided", () => {
+    render(<AgentCard name="justifier" label="Justifier" model="gemini-2.5-flash"
+                       state="idle" tools={[]}
+                       usesLabel="Tavily news API · policy clauses" />);
+    expect(screen.getByText(/Tavily news API · policy clauses/)).toBeInTheDocument();
+    expect(screen.getByText(/USES:/)).toBeInTheDocument();
+  });
+
+  it("does not render usesLabel chip when not provided", () => {
+    render(<AgentCard name="prioritizer" label="Threat Prioritizer" model="gemini-2.5-flash"
+                       state="idle" tools={[]} />);
+    expect(screen.queryByText(/USES:/)).not.toBeInTheDocument();
+  });
 });

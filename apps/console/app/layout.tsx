@@ -8,7 +8,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // our own components — only top-level extension noise.
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased" suppressHydrationWarning>{children}</body>
+      <body className="antialiased overflow-x-hidden" style={{ background: "#0b0f17" }} suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

@@ -9,6 +9,7 @@ const MOCK_STEP: DemoStep = {
   duration_ms: 4000,
   title: "📡 SENSORS LIVE",
   body: "Synthetic airspace tracks streaming at 10 Hz.",
+  poweredBy: "📡 Open scenario data — replays a 30s drone-attack JSON file",
   highlight: "map",
 };
 
@@ -30,6 +31,16 @@ describe("DemoNarration", () => {
     render(<DemoNarration />);
     expect(screen.getByText(MOCK_STEP.title)).toBeInTheDocument();
     expect(screen.getByText(MOCK_STEP.body)).toBeInTheDocument();
+  });
+
+  it("renders poweredBy footer when step has poweredBy", () => {
+    useMeshStore.setState((s) => ({
+      ...s,
+      demo: { active: true, currentStep: MOCK_STEP, highlight: "map" },
+    }));
+    render(<DemoNarration />);
+    expect(screen.getByText(/POWERED BY:/)).toBeInTheDocument();
+    expect(screen.getByText(/Open scenario data/)).toBeInTheDocument();
   });
 
   it("hides the card when the step is cleared", async () => {

@@ -11,8 +11,25 @@ const ringForState: Record<AgentState, string> = {
   error:        "ring-danger",
 };
 
-export function AgentCard({ name, label, model, state, tools, lastMessage, highlighted }:
-  { name: string; label: string; model: string; state: AgentState; tools: ToolCallView[]; lastMessage?: string; highlighted?: boolean }) {
+export function AgentCard({
+  name,
+  label,
+  model,
+  state,
+  tools,
+  lastMessage,
+  highlighted,
+  usesLabel,
+}: {
+  name: string;
+  label: string;
+  model: string;
+  state: AgentState;
+  tools: ToolCallView[];
+  lastMessage?: string;
+  highlighted?: boolean;
+  usesLabel?: string;
+}) {
   const hlShadow = highlighted
     ? "shadow-[0_0_24px_rgba(92,242,192,0.5)] ring-accent demo-highlight-pulse"
     : ringForState[state];
@@ -29,6 +46,12 @@ export function AgentCard({ name, label, model, state, tools, lastMessage, highl
         </div>
       </div>
       <div className="mt-1 font-semibold">{label}</div>
+      {usesLabel && (
+        <div className="mt-1.5 text-[10px] font-mono px-2 py-0.5 rounded inline-block"
+             style={{ background: "rgba(124,134,155,0.12)", color: "#7c869b", border: "1px solid rgba(124,134,155,0.15)" }}>
+          USES: {usesLabel}
+        </div>
+      )}
       {lastMessage && <div className="mt-2 text-xs text-white/70 line-clamp-2">{lastMessage}</div>}
       <AnimatePresence>
         {tools.length > 0 && (
