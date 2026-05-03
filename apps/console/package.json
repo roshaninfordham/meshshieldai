@@ -10,6 +10,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@deck.gl/layers": "^9.3.2",
+    "@deck.gl/react": "^9.3.2",
     "@meshshield/protocol": "workspace:*",
     "@meshshield/scenarios": "workspace:*",
     "cbor-x": "^1.6.0",
@@ -19,7 +21,7 @@
     "next": "^15.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-map-gl": "^7.1.7",
+    "react-map-gl": "^7.1.9",
     "reactflow": "^11.11.4",
     "recharts": "^2.13.0",
     "zustand": "^5.0.1"
