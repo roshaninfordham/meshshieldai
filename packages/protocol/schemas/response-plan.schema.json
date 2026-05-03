@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meshshield.ai/schemas/response-plan.json",
+  "title": "ResponsePlan",
+  "type": "object",
+  "required": ["v", "plan_id", "snapshot_id", "ts", "assignments", "escalation"],
+  "additionalProperties": false,
+  "properties": {
+    "v":           {"type": "integer", "const": 1},
+    "plan_id":     {"type": "string"},
+    "snapshot_id": {"type": "string"},
+    "ts":          {"type": "number"},
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target_id", "interceptor_id", "mode", "priority", "justification"],
+        "additionalProperties": false,
+        "properties": {
+          "target_id":      {"type": "string"},
+          "interceptor_id": {"type": "string"},
+          "mode":           {"type": "string", "enum": ["kinetic", "rf_jam", "spoof", "monitor"]},
+          "priority":       {"type": "integer", "minimum": 1},
+          "justification": {
+            "type": "object",
+            "required": ["snapshot_refs", "tavily_refs", "policy_refs"],
+            "additionalProperties": false,
+            "properties": {
+              "snapshot_refs": {"type": "array", "items": {"type": "string"}},
+              "tavily_refs":   {"type": "array", "items": {"type": "string"}},
+              "policy_refs":   {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "escalation": {
+      "type": "object",
+      "required": ["required", "reasons"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {"type": "boolean"},
+        "reasons":  {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

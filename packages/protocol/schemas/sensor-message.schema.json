@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meshshield.ai/schemas/sensor-message.json",
+  "title": "SensorMessage",
+  "type": "object",
+  "required": ["v", "node_id", "ts", "detections"],
+  "additionalProperties": false,
+  "properties": {
+    "v":         {"type": "integer", "const": 1},
+    "node_id":   {"type": "string"},
+    "ts":        {"type": "number"},
+    "detections":{
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["class", "conf", "bearing_deg", "elev_deg", "px_box"],
+        "additionalProperties": false,
+        "properties": {
+          "class":       {"type": "string"},
+          "conf":        {"type": "number", "minimum": 0, "maximum": 1},
+          "bearing_deg": {"type": "number"},
+          "elev_deg":    {"type": "number"},
+          "px_box":      {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}
+        }
+      }
+    }
+  }
+}
