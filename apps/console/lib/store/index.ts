@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { AgentEvent, Snapshot, ResponsePlan } from "@meshshield/protocol";
+import type { DemoStep, HighlightTarget } from "@/lib/demo/script";
 
 export type AgentName = "prioritizer" | "allocator" | "justifier" | "escalator" | "watch_commander";
 export type AgentState = "idle" | "thinking" | "tool_calling" | "done" | "error";
@@ -7,11 +8,22 @@ export type AgentState = "idle" | "thinking" | "tool_calling" | "done" | "error"
 export type ToolCallView = { tool: string; state: "running" | "done" | "error"; ms?: number; result_summary?: string };
 export type AgentView = { state: AgentState; lastMessage?: string; tools: ToolCallView[] };
 
+export type NlipMsg = { role: "you" | "wc"; text: string };
+
+export type DemoSlice = {
+  active: boolean;
+  currentStep: DemoStep | null;
+  highlight: HighlightTarget;
+};
+
 type State = {
   agents: Record<AgentName, AgentView>;
   tracks: any[];
   plan: ResponsePlan | null;
   tape: AgentEvent[];
+  nlipMsgs: NlipMsg[];
+  nlipBusy: boolean;
+  demo: DemoSlice;
 };
 
 const initial: State = {
@@ -25,6 +37,9 @@ const initial: State = {
   tracks: [],
   plan: null,
   tape: [],
+  nlipMsgs: [],
+  nlipBusy: false,
+  demo: { active: false, currentStep: null, highlight: "none" },
 };
 
 export const useMeshStore = create<State>(() => initial);
@@ -77,4 +92,46 @@ export function applySnapshot(snap: Snapshot): void {
 
 export function applyPlan(plan: ResponsePlan): void {
   useMeshStore.setState((s) => ({ ...s, plan }));
+}
+
+export function resetForDemo(): void {
+  useMeshStore.setState({
+    agents: {
+      prioritizer:     { state: "idle", tools: [] },
+      allocator:       { state: "idle", tools: [] },
+      justifier:       { state: "idle", tools: [] },
+      escalator:       { state: "idle", tools: [] },
+      watch_commander: { state: "idle", tools: [] },
+    },
+    tracks: [],
+    plan: null,
+    tape: [],
+    nlipMsgs: [],
+    nlipBusy: false,
+    demo: { active: true, currentStep: null, highlight: "none" },
+  });
+}
+
+export function setDemoStep(step: DemoStep | null): void {
+  useMeshStore.setState((s) => ({
+    demo: {
+      active: s.demo.active,
+      currentStep: step,
+      highlight: step?.highlight ?? "none",
+    },
+  }));
+}
+
+export function endDemo(): void {
+  useMeshStore.setState((s) => ({
+    demo: { active: false, currentStep: s.demo.currentStep, highlight: "none" },
+  }));
+}
+
+export function pushNlipMsg(msg: NlipMsg): void {
+  useMeshStore.setState((s) => ({ nlipMsgs: [...s.nlipMsgs, msg] }));
+}
+
+export function setNlipBusy(busy: boolean): void {
+  useMeshStore.setState({ nlipBusy: busy });
 }

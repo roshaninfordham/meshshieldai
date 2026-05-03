@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
+import { useMeshStore, pushNlipMsg, setNlipBusy } from "@/lib/store";
 
 type NlipClient = { ask: (s: string) => Promise<string>; close: () => void };
-type Msg = { role: "you" | "wc"; text: string };
 const CITATION = /\[(snapshot\.(?:[^\[\]]+|\[\d+\])+|clause:[^\]]+|plan-\w+)\]/g;
 
 const renderWithCitations = (text: string) => {
@@ -14,23 +14,36 @@ const renderWithCitations = (text: string) => {
     : <span key={i} className="inline-block rounded bg-accent/15 text-accent px-1.5 py-[1px] mx-0.5 font-mono text-[11px]">{p.c}</span>);
 };
 
+function usePanelHighlight(target: string): string {
+  const highlight = useMeshStore((s) => s.demo.highlight);
+  return highlight === target
+    ? "ring-2 ring-accent shadow-[0_0_24px_rgba(92,242,192,0.45)] demo-highlight-pulse"
+    : "";
+}
+
 export function NlipChat({ client }: { client: NlipClient }) {
   const [input, setInput] = useState("");
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [busy, setBusy] = useState(false);
+  const msgs = useMeshStore((s) => s.nlipMsgs);
+  const busy = useMeshStore((s) => s.nlipBusy);
+  const hlClass = usePanelHighlight("chat");
 
   const send = async () => {
     if (!input.trim() || busy) return;
     const q = input.trim();
-    setMsgs((m) => [...m, { role: "you", text: q }]);
-    setInput(""); setBusy(true);
-    try { const a = await client.ask(q); setMsgs((m) => [...m, { role: "wc", text: a }]); }
-    finally { setBusy(false); }
+    pushNlipMsg({ role: "you", text: q });
+    setInput("");
+    setNlipBusy(true);
+    try {
+      const a = await client.ask(q);
+      pushNlipMsg({ role: "wc", text: a });
+    } finally {
+      setNlipBusy(false);
+    }
   };
 
   const suggestions = ["Summarize current threats.", "Why was T-13 not assigned?", "Which interceptor is on T-001?"];
   return (
-    <div className="flex flex-col rounded-xl bg-panelSolid ring-1 ring-white/10 p-3 h-[260px]">
+    <div className={`flex flex-col rounded-xl bg-panelSolid ring-1 ring-white/10 p-3 h-[260px] transition-shadow duration-300 ${hlClass}`}>
       <div className="text-xs text-muted">WATCH COMMANDER · NLIP/WS</div>
       <div className="flex-1 overflow-y-auto my-2 space-y-2 text-sm">
         {msgs.map((m, i) => (

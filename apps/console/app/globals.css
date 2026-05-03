@@ -3,3 +3,12 @@
 @tailwind utilities;
 
 html, body, #__next { height: 100%; background: #0b0f17; color: #e6ecf5; }
+
+/* Demo highlight ring — 1 Hz subtle pulse (not strobe) */
+@keyframes demo-glow {
+  0%, 100% { box-shadow: 0 0 16px rgba(92, 242, 192, 0.35); }
+  50%       { box-shadow: 0 0 32px rgba(92, 242, 192, 0.65); }
+}
+.demo-highlight-pulse {
+  animation: demo-glow 1s ease-in-out infinite;
+}

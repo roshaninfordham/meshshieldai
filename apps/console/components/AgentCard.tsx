@@ -11,13 +11,16 @@ const ringForState: Record<AgentState, string> = {
   error:        "ring-danger",
 };
 
-export function AgentCard({ name, label, model, state, tools, lastMessage }:
-  { name: string; label: string; model: string; state: AgentState; tools: ToolCallView[]; lastMessage?: string }) {
+export function AgentCard({ name, label, model, state, tools, lastMessage, highlighted }:
+  { name: string; label: string; model: string; state: AgentState; tools: ToolCallView[]; lastMessage?: string; highlighted?: boolean }) {
+  const hlShadow = highlighted
+    ? "shadow-[0_0_24px_rgba(92,242,192,0.5)] ring-accent demo-highlight-pulse"
+    : ringForState[state];
   return (
     <motion.div layout
       animate={state === "error" ? { x: [0,-3,3,-2,2,0] } : { x: 0 }}
       transition={{ duration: 0.35 }}
-      className={`rounded-xl ring-1 ${ringForState[state]} bg-panelSolid p-3 min-w-[230px] shadow-md`}>
+      className={`rounded-xl ring-1 ${hlShadow} bg-panelSolid p-3 min-w-[230px] shadow-md transition-shadow duration-300`}>
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted">{name}</div>
         <div className="flex items-center gap-1 text-[10px]">

@@ -6,6 +6,13 @@ import { useMemo } from "react";
 import { useMeshStore } from "@/lib/store";
 import osm from "@meshshield/scenarios/assets/osm-datacenter.json";
 
+function usePanelHighlight(target: string): string {
+  const highlight = useMeshStore((s) => s.demo.highlight);
+  return highlight === target
+    ? "ring-2 ring-accent shadow-[0_0_24px_rgba(92,242,192,0.45)] demo-highlight-pulse"
+    : "";
+}
+
 const INITIAL = { longitude: -122.1697, latitude: 37.4275, zoom: 16, pitch: 45, bearing: 0 };
 
 export function Map3D() {
@@ -25,8 +32,9 @@ export function Map3D() {
     new ScatterplotLayer({ id: "tracks", data: dotData, getPosition: (d:any) => d.pos, getFillColor: (d:any) => d.color, getRadius: (d:any) => d.radius, radiusUnits: "pixels" }),
   ]), [dotData]);
 
+  const hlClass = usePanelHighlight("map");
   return (
-    <div className="h-[420px] rounded-xl overflow-hidden ring-1 ring-white/10">
+    <div className={`h-[420px] rounded-xl overflow-hidden ring-1 ring-white/10 transition-shadow duration-300 ${hlClass}`}>
       <DeckGL initialViewState={INITIAL} controller layers={layers}>
         <MapLibre mapStyle="https://demotiles.maplibre.org/style.json" />
       </DeckGL>

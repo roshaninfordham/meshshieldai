@@ -1,14 +1,22 @@
 "use client";
 import { useMeshStore } from "@/lib/store";
 
+function usePanelHighlight(target: string): string {
+  const highlight = useMeshStore((s) => s.demo.highlight);
+  return highlight === target
+    ? "ring-2 ring-accent shadow-[0_0_24px_rgba(92,242,192,0.45)] demo-highlight-pulse"
+    : "";
+}
+
 const arr = (x: unknown): string[] => Array.isArray(x) ? x.map(String) : [];
 
 export function PlanPanel() {
   const plan = useMeshStore((s) => s.plan) as any;
-  if (!plan) return <div className="rounded-xl bg-panelSolid ring-1 ring-white/10 p-4 text-muted text-sm">No plan yet — waiting for first agent tick…</div>;
+  const hlClass = usePanelHighlight("plan");
+  if (!plan) return <div className={`rounded-xl bg-panelSolid ring-1 ring-white/10 p-4 text-muted text-sm transition-shadow duration-300 ${hlClass}`}>No plan yet — waiting for first agent tick…</div>;
   const assignments = Array.isArray(plan.assignments) ? plan.assignments : [];
   return (
-    <div className="rounded-xl bg-panelSolid ring-1 ring-white/10 p-4">
+    <div className={`rounded-xl bg-panelSolid ring-1 ring-white/10 p-4 transition-shadow duration-300 ${hlClass}`}>
       <div className="flex justify-between items-baseline">
         <div className="text-xs text-muted">RESPONSE PLAN · {plan.plan_id}</div>
         {plan.escalation?.required && <div className="text-danger text-xs">ESCALATION REQUIRED</div>}

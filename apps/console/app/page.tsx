@@ -8,6 +8,8 @@ import { PlanPanel } from "@/components/PlanPanel";
 import { EventTape } from "@/components/EventTape";
 import { CostCurveOverlay } from "@/components/CostCurveOverlay";
 import { EscalationBanner } from "@/components/EscalationBanner";
+import { DemoController } from "@/components/DemoController";
+import { DemoNarration } from "@/components/DemoNarration";
 import { connectSnapshotStream } from "@/lib/streams/snapshot";
 import { connectAgentStream } from "@/lib/streams/agent";
 import { createNlipClient } from "@/lib/nlip/client";
@@ -23,6 +25,8 @@ export default function Page() {
   const nlip = useMemo(() => createNlipClient(process.env.NEXT_PUBLIC_AGENT_NLIP_WS_URL ?? "ws://localhost:8002/nlip"), []);
   return (
     <main className="min-h-screen flex flex-col">
+      <DemoController client={nlip} />
+      <DemoNarration />
       <Header scenario={process.env.NEXT_PUBLIC_SCENARIO ?? "data-center-swarm-attack"} />
       <div className="p-4 flex flex-col gap-3">
         <EscalationBanner />
