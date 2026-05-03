@@ -9,6 +9,7 @@ describe("PlanPanel", () => {
     render(<PlanPanel />);
     expect(screen.getByText(/no plan yet/i)).toBeInTheDocument();
   });
+
   it("renders assignments when a plan is set", () => {
     useMeshStore.setState({ ...(useMeshStore as any).getInitialState(),
       plan: { v:1, plan_id:"plan-1", snapshot_id:"snap-1", ts: 1,
@@ -16,7 +17,34 @@ describe("PlanPanel", () => {
                               justification:{ snapshot_refs:["tracks[0].pos_3d"], tavily_refs:[], policy_refs:["clause:proximity_under_50m"] }}],
               escalation: { required:false, reasons: [] }} as any });
     render(<PlanPanel />);
-    expect(screen.getByText(/t-1/)).toBeInTheDocument();
-    expect(screen.getByText(/i-002/)).toBeInTheDocument();
+    // Raw IDs are rendered as muted subscripts — check with case-insensitive regex
+    expect(screen.getByText(/T-1/i)).toBeInTheDocument();
+    expect(screen.getByText(/I-002/i)).toBeInTheDocument();
+    // Plain-English labels should also be present
+    expect(screen.getAllByText(/Drone #/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Interceptor #/i).length).toBeGreaterThan(0);
+    // Mode should be translated
+    expect(screen.getByText(/Kinetic intercept/i)).toBeInTheDocument();
+    // Justification should be translated
+    expect(screen.getAllByText(/Sensor data/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Policy/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows plan id in header", () => {
+    useMeshStore.setState({ ...(useMeshStore as any).getInitialState(),
+      plan: { v:1, plan_id:"plan-42", snapshot_id:"snap-1", ts: 1,
+              assignments: [],
+              escalation: { required:false, reasons: [] }} as any });
+    render(<PlanPanel />);
+    expect(screen.getByText(/plan-42/i)).toBeInTheDocument();
+  });
+
+  it("shows human-approval warning when escalation required", () => {
+    useMeshStore.setState({ ...(useMeshStore as any).getInitialState(),
+      plan: { v:1, plan_id:"plan-1", snapshot_id:"snap-1", ts: 1,
+              assignments: [],
+              escalation: { required:true, reasons: ["High risk"] }} as any });
+    render(<PlanPanel />);
+    expect(screen.getByText(/human approval needed/i)).toBeInTheDocument();
   });
 });

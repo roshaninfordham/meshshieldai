@@ -25,10 +25,18 @@ const MODE_COLOR: Record<string, string> = {
   spoof:   "#c084fc",
 };
 
+// Plain-English display labels for interceptor types
 const MODE_LABEL: Record<string, string> = {
-  rf_jam:  "RF Jammer",
+  rf_jam:  "Radio Jammer",
   kinetic: "Kinetic",
-  spoof:   "Spoofer",
+  spoof:   "GPS Spoofer",
+};
+
+// What each interceptor type DOES — shown in legend + tooltips
+const MODE_DESCRIPTION: Record<string, string> = {
+  rf_jam:  "Disrupts the drone's radio control link. Drone loses contact with its operator and either returns home or descends safely. No physical damage (soft kill).",
+  kinetic: "Physically intercepts the drone — net launcher, projectile, or interceptor drone. Hard kill, definitive but expensive.",
+  spoof:   "Sends false GPS signals to redirect the drone to a safe landing zone. Drone is guided away without any debris.",
 };
 
 const TRAIL_LEN = 10;
@@ -36,6 +44,17 @@ const SVG_SIZE = 600;
 
 type TrailBuffer = Record<string, Array<[number, number]>>;
 type PanZoom = { scale: number; tx: number; ty: number };
+
+// Sequential drone/interceptor numbering helpers
+function droneNumber(id: string): number {
+  const m = id.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
+
+function interceptorNumber(id: string): number {
+  const m = id.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
 
 function usePanelHighlight(target: string): string {
   const highlight = useMeshStore((s) => s.demo.highlight);
@@ -61,14 +80,39 @@ function interceptorPos(angleIdx: number, assetX: number, assetY: number, radius
 /** Label offset for interceptor based on angle: outside the asset */
 function interceptorLabelAnchor(angleIdx: number): { anchor: "start" | "middle" | "end"; dx: number; dy: number } {
   const angle = INTERCEPTOR_ANGLES[angleIdx];
-  if (angle === 0)   return { anchor: "middle", dx:  0, dy: -22 }; // top → label above
-  if (angle === 90)  return { anchor: "start",  dx: 18, dy:   4 }; // right → label right
-  if (angle === 180) return { anchor: "middle", dx:  0, dy:  30 }; // bottom → label below
-  return               { anchor: "end",    dx: -18, dy:   4 }; // left → label left
+  if (angle === 0)   return { anchor: "middle", dx:  0, dy: -28 }; // top → label above
+  if (angle === 90)  return { anchor: "start",  dx: 22, dy:   4 }; // right → label right
+  if (angle === 180) return { anchor: "middle", dx:  0, dy:  34 }; // bottom → label below
+  return               { anchor: "end",    dx: -22, dy:   4 }; // left → label left
 }
 
-// Welcome / help modal state lives outside component to avoid re-render loops
-let _helpModalOpen = false;
+/** Simple 1D anti-collision: offset label y if it would overlap an existing placed label */
+function antiCollide(
+  proposals: Array<{ id: string; x: number; y: number; w: number; h: number }>,
+): Array<{ id: string; x: number; y: number; w: number; h: number }> {
+  const placed: Array<{ id: string; x: number; y: number; w: number; h: number }> = [];
+  for (const p of proposals) {
+    let { x, y, w, h } = p;
+    let attempts = 0;
+    let bumped = true;
+    while (bumped && attempts < 20) {
+      bumped = false;
+      for (const q of placed) {
+        const overlapX = Math.abs(x - q.x) < (w + q.w) / 2 + 4;
+        const overlapY = Math.abs(y - q.y) < (h + q.h) / 2 + 4;
+        if (overlapX && overlapY) {
+          // push down 20px
+          y += 20;
+          bumped = true;
+          attempts++;
+          break;
+        }
+      }
+    }
+    placed.push({ ...p, x, y });
+  }
+  return placed;
+}
 
 export function AirspaceCanvas() {
   const tracks    = useMeshStore((s) => s.tracks);
@@ -82,14 +126,16 @@ export function AirspaceCanvas() {
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const svgRef  = useRef<SVGSVGElement>(null);
 
+  // Legend expand/collapse
+  const [legendExpanded, setLegendExpanded] = useState(false);
+
   // Help modal
   const [helpOpen, setHelpOpen] = useState(false);
 
   // Tooltip state
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
-  // Clock — client-only to avoid SSR/CSR hydration mismatch (timestamp differs by ms between
-  // server render and client mount). Empty string on SSR; real value after mount.
+  // Clock — client-only to avoid SSR/CSR hydration mismatch
   const [clock, setClock] = useState("");
   useEffect(() => {
     setClock(formatUtcTime(new Date()));
@@ -128,7 +174,6 @@ export function AirspaceCanvas() {
 
   const [ax, ay] = toSvg(ASSET.pos[0], ASSET.pos[1]);
   const assetRadius = (ASSET.radius / W) * SVG_SIZE;
-  // Interceptor SVG radius (in SVG units)
   const intSvgRadius = (INTERCEPTOR_RADIUS / W) * SVG_SIZE;
 
   const underThreat = tracks.some((t: any) => {
@@ -194,10 +239,29 @@ export function AirspaceCanvas() {
   }, []);
   const hideTooltip = useCallback(() => setTooltip(null), []);
 
+  // Compute anti-collided label positions for tracks
+  const trackLabelPositions = useMemo(() => {
+    const proposals = tracks.map((t: any) => {
+      const [tx2, ty2] = toSvg(t.pos_3d[0], t.pos_3d[1]);
+      const dx = t.pos_3d[0] - ASSET.pos[0];
+      const dy = t.pos_3d[1] - ASSET.pos[1];
+      const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+      const closeToAsset = dist < 80;
+      return {
+        id: t.id,
+        x: closeToAsset ? tx2 : tx2 + 53,
+        y: closeToAsset ? ty2 - 36 : ty2,
+        w: 90,
+        h: 32,
+      };
+    });
+    return antiCollide(proposals);
+  }, [tracks, toSvg]);
+
   return (
     <div
-      className={`h-[560px] rounded-xl overflow-hidden ring-1 ring-white/10 transition-shadow duration-300 ${hlClass} relative select-none`}
-      style={{ background: "#0b0f17", cursor: locked ? "default" : "grab" }}
+      className={`rounded-xl overflow-hidden ring-1 ring-white/10 transition-shadow duration-300 ${hlClass} relative select-none`}
+      style={{ background: "#0b0f17", cursor: locked ? "default" : "grab", height: "100%", minHeight: "420px" }}
       onWheel={onWheel}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
@@ -205,12 +269,12 @@ export function AirspaceCanvas() {
       onMouseLeave={onMouseUp}
     >
       {/* Top status strip */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex gap-4 px-4 py-2 text-xs font-mono"
+      <div className="absolute top-0 left-0 right-0 z-20 flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 text-xs font-mono"
            style={{ background: "rgba(11,15,23,0.92)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ color: "#5cf2c0" }}>📡 {tracks.length} tracks</span>
-        <span style={{ color: "#4facfe" }}>🛡 {INTERCEPTORS.length} interceptors</span>
-        <span style={{ color: "#fcb045" }}>⚡ {assignments.length} assignments</span>
-        <span style={{ color: "#7c869b" }}>TICK #{tickCount}</span>
+        <span style={{ color: "#5cf2c0" }}>📡 {tracks.length} drones tracked</span>
+        <span style={{ color: "#4facfe" }}>🛡 {INTERCEPTORS.length} interceptors ready</span>
+        <span style={{ color: "#fcb045" }}>⚡ {assignments.length} active engagements</span>
+        <span style={{ color: "#7c869b" }}>Cycle #{tickCount}</span>
         <span className="ml-auto font-bold" style={{ color: "#5cf2c0" }} suppressHydrationWarning>
           {clock ? `${clock} UTC · LIVE` : "— LIVE"}
         </span>
@@ -237,7 +301,7 @@ export function AirspaceCanvas() {
         </div>
       </div>
 
-      {/* ❓ Help button — top right (above zoom controls) */}
+      {/* ❓ Help button — top right */}
       <button
         onClick={() => setHelpOpen(true)}
         className="absolute top-12 right-14 z-20 w-8 h-8 rounded font-mono text-sm font-bold flex items-center justify-center"
@@ -252,34 +316,109 @@ export function AirspaceCanvas() {
       {underThreat && (
         <div className="absolute top-12 left-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono font-bold text-sm animate-pulse"
              style={{ background: "rgba(255,92,92,0.2)", border: "1px solid rgba(255,92,92,0.6)", color: "#ff5c5c" }}>
-          ⚠ THREAT IMMINENT · {threatCount} TRACK{threatCount > 1 ? "S" : ""} IN PERIMETER
+          ⚠ DRONE IN PROTECTED ZONE · {threatCount} drone{threatCount > 1 ? "s" : ""} inside perimeter
         </div>
       )}
 
-      {/* Always-visible legend panel — top left */}
+      {/* Expandable legend panel — top left */}
       <div className="absolute z-20 text-[10px] font-mono leading-relaxed"
            style={{
              top: "44px", left: "8px",
-             background: "rgba(11,15,23,0.88)",
-             border: "1px solid rgba(255,255,255,0.1)",
+             background: "rgba(11,15,23,0.92)",
+             border: "1px solid rgba(255,255,255,0.12)",
              borderRadius: "8px",
              padding: "8px 10px",
              color: "#c0cad9",
-             minWidth: "190px",
-             pointerEvents: "none",
+             minWidth: "200px",
+             maxWidth: "260px",
+             pointerEvents: "auto",
            }}>
-        <div className="font-bold mb-1" style={{ color: "#5cf2c0" }}>🛡 LEGEND</div>
-        <div><span style={{ color: "#5cf2c0" }}>●</span> Real drone (sensor detection)</div>
-        <div><span style={{ color: "#fcb045" }}>●</span> Simulated drone (drill data)</div>
-        <div><span style={{ color: "#4facfe" }}>▲</span> RF jammer interceptor</div>
-        <div><span style={{ color: "#ff5c5c" }}>▲</span> Kinetic interceptor</div>
-        <div><span style={{ color: "#c084fc" }}>▲</span> Spoof interceptor</div>
-        <div><span style={{ color: "#ff5c5c" }}>⬢</span> Protected asset (data center)</div>
-        <div><span style={{ color: "#fcb045" }}>- -</span> Active assignment</div>
-        <div><span style={{ color: "#fcb045" }}>◯</span> Drone being engaged</div>
+        <button
+          className="w-full flex items-center justify-between font-bold mb-1"
+          style={{ color: "#5cf2c0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          onClick={() => setLegendExpanded(e => !e)}
+        >
+          <span>🛡 LEGEND</span>
+          <span style={{ fontSize: "9px", opacity: 0.7 }}>{legendExpanded ? "▲ collapse" : "▼ expand"}</span>
+        </button>
+
+        {/* Collapsed: icons + names only */}
+        {!legendExpanded && (
+          <>
+            <div><span style={{ color: "#5cf2c0" }}>●</span> Real drone</div>
+            <div><span style={{ color: "#fcb045" }}>●</span> Simulated drone</div>
+            <div><span style={{ color: "#4facfe" }}>▲</span> Radio jammer</div>
+            <div><span style={{ color: "#ff5c5c" }}>▲</span> Kinetic interceptor</div>
+            <div><span style={{ color: "#c084fc" }}>▲</span> GPS spoofer</div>
+            <div><span style={{ color: "#ff5c5c" }}>⬢</span> Protected asset</div>
+            <div><span style={{ color: "#fcb045" }}>- -</span> Active engagement</div>
+          </>
+        )}
+
+        {/* Expanded: full descriptions */}
+        {legendExpanded && (
+          <>
+            <div className="mt-1 mb-0.5" style={{ color: "#7c869b", fontSize: "9px" }}>DRONES</div>
+            <div className="mb-1">
+              <span style={{ color: "#5cf2c0" }}>● Real drone</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                Detected by an actual sensor (camera, radar, or RF receiver)
+              </div>
+            </div>
+            <div className="mb-1">
+              <span style={{ color: "#fcb045" }}>● Simulated drone</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                Drill data injected from a scenario — not a real threat
+              </div>
+            </div>
+
+            <div className="mt-1.5 mb-0.5" style={{ color: "#7c869b", fontSize: "9px" }}>INTERCEPTORS (countermeasures)</div>
+            <div className="mb-1">
+              <span style={{ color: "#4facfe" }}>▲ Radio jammer</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                Disrupts the drone&apos;s radio link. It loses contact with its operator
+                and returns home or descends safely. No damage.
+              </div>
+            </div>
+            <div className="mb-1">
+              <span style={{ color: "#ff5c5c" }}>▲ Kinetic</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                Physically intercepts with a net, projectile, or interceptor drone.
+                Definitive but expensive.
+              </div>
+            </div>
+            <div className="mb-1">
+              <span style={{ color: "#c084fc" }}>▲ GPS spoofer</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                Sends fake GPS to redirect the drone to a safe landing zone.
+                No debris, soft kill.
+              </div>
+            </div>
+
+            <div className="mt-1.5 mb-0.5" style={{ color: "#7c869b", fontSize: "9px" }}>ASSET &amp; ASSIGNMENTS</div>
+            <div className="mb-1">
+              <span style={{ color: "#ff5c5c" }}>⬢ Protected asset</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                The thing we&apos;re defending — here, a data center
+              </div>
+            </div>
+            <div className="mb-1">
+              <span style={{ color: "#fcb045" }}>- - Active engagement</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                Dashed line shows which interceptor is paired with which drone
+              </div>
+            </div>
+            <div>
+              <span style={{ color: "#fcb045" }}>◯ Yellow ring on drone</span>
+              <div style={{ color: "#7c869b", paddingLeft: "12px", marginTop: "1px" }}>
+                This drone is currently being engaged by an interceptor
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Help footer (bottom-RIGHT, away from legend) */}
+      {/* Help footer */}
       <div className="absolute bottom-0 right-0 z-20 px-4 py-1.5 text-[9px] font-mono"
            style={{ background: "rgba(11,15,23,0.85)", borderTop: "1px solid rgba(255,255,255,0.05)",
                     borderLeft: "1px solid rgba(255,255,255,0.05)", borderTopLeftRadius: "6px",
@@ -361,11 +500,11 @@ export function AirspaceCanvas() {
           {/* Asset — big red hexagon */}
           <g
             style={{ cursor: "pointer" }}
-            onMouseEnter={e => showTooltip(e, "🔴 Protected Asset: Hyperscaler DC East\nThis data center is the mission objective — keep all drones out of the perimeter.")}
+            onMouseEnter={e => showTooltip(e, "🔴 Protected Asset: Hyperscaler DC East\nThis data center is what we're defending. If any drone enters this perimeter, the threat is imminent.")}
             onMouseMove={moveTooltip}
             onMouseLeave={hideTooltip}
           >
-            <title>Protected Asset: Hyperscaler DC East — data center perimeter</title>
+            <title>Protected Asset: Hyperscaler DC East — keep all drones out of this perimeter</title>
             <AssetHex cx={ax} cy={ay} size={40} />
           </g>
           {/* Pulsing perimeter ring */}
@@ -385,7 +524,18 @@ export function AirspaceCanvas() {
             const [ix, iy] = interceptorPos(int.angleIdx, ax, ay, intSvgRadius);
             const col = MODE_COLOR[int.kind] ?? "#aaa";
             const lbl = interceptorLabelAnchor(int.angleIdx);
-            const tooltipText = `🛡 Interceptor ${int.id} — ${MODE_LABEL[int.kind] ?? int.kind}\nRange: ${int.range}m · Stationed at ${["12 o'clock","3 o'clock","6 o'clock","9 o'clock"][int.angleIdx]} position`;
+            const num = interceptorNumber(int.id);
+            const clockPos = ["12 o'clock","3 o'clock","6 o'clock","9 o'clock"][int.angleIdx];
+            const modeDesc = MODE_DESCRIPTION[int.kind] ?? "";
+            const tooltipText = `🛡 Interceptor #${num} (id ${int.id})\nStationed at ${clockPos}.\nType: ${MODE_LABEL[int.kind] ?? int.kind} — ${modeDesc}\nRange: ${int.range}m · Status: Standby`;
+
+            // label box width/offset by anchor
+            const boxW = 118;
+            const boxX = lbl.anchor === "middle"
+              ? ix + lbl.dx - boxW / 2
+              : lbl.anchor === "start"
+              ? ix + lbl.dx - 2
+              : ix + lbl.dx - boxW + 2;
 
             return (
               <g key={int.id}
@@ -398,18 +548,20 @@ export function AirspaceCanvas() {
                 <line x1={ix} y1={iy} x2={ax} y2={ay}
                       stroke={col} strokeWidth="0.8" strokeOpacity="0.15" strokeDasharray="4 6" />
                 <InterceptorTriangle cx={ix} cy={iy} color={col} size={14} />
-                {/* Label outside asset — angle-positioned so no overlap */}
-                <rect x={ix + lbl.dx - (lbl.anchor === "middle" ? 56 : lbl.anchor === "start" ? 2 : 112)} y={iy + lbl.dy - 14} width={110} height={26} rx="3"
-                      fill="rgba(11,15,23,0.82)" stroke={col} strokeWidth="0.6" strokeOpacity="0.5"/>
+                {/* Label background */}
+                <rect x={boxX} y={iy + lbl.dy - 16} width={boxW} height={30} rx="3"
+                      fill="rgba(11,15,23,0.85)" stroke={col} strokeWidth="0.6" strokeOpacity="0.5"/>
+                {/* Big plain-English name */}
                 <text x={ix + lbl.dx} y={iy + lbl.dy} textAnchor={lbl.anchor} fill={col}
-                      fontSize="9" fontFamily="monospace" fontWeight="bold"
+                      fontSize="9.5" fontFamily="monospace" fontWeight="bold"
                       className="svg-label">
-                  🛡 {int.id}
+                  Interceptor #{num}
                 </text>
-                <text x={ix + lbl.dx} y={iy + lbl.dy + 11} textAnchor={lbl.anchor} fill={col}
+                {/* Subtitle: type + range */}
+                <text x={ix + lbl.dx} y={iy + lbl.dy + 12} textAnchor={lbl.anchor} fill={col}
                       fontSize="8" fontFamily="monospace" opacity="0.8"
                       className="svg-label">
-                  {MODE_LABEL[int.kind]} · {int.range}m
+                  {MODE_LABEL[int.kind]} · {int.range}m range
                 </text>
               </g>
             );
@@ -426,24 +578,26 @@ export function AirspaceCanvas() {
             const [ix2, iy2] = interceptorPos(int_.angleIdx, ax, ay, intSvgRadius);
             const mx = (tx2 + ix2) / 2, my = (ty2 + iy2) / 2;
             const col = MODE_COLOR[a.mode ?? int_.kind] ?? "#fcb045";
+            const modeLabel = MODE_LABEL[a.mode ?? int_.kind] ?? (a.mode ?? int_.kind);
+            const droneNum = droneNumber(targetId);
             return (
               <g key={`asgn-${a.interceptor_id}-${targetId}`}>
                 <line x1={ix2} y1={iy2} x2={tx2} y2={ty2}
                       stroke={col} strokeWidth="2.5" strokeOpacity="0.75"
                       className="dash-line2" />
-                <rect x={mx - 28} y={my - 10} width={56} height={14} rx="2"
+                <rect x={mx - 38} y={my - 10} width={76} height={14} rx="2"
                       fill="rgba(11,15,23,0.85)" />
                 <text x={mx} y={my} textAnchor="middle" fill={col}
-                      fontSize="8.5" fontFamily="monospace" fontWeight="bold"
+                      fontSize="8" fontFamily="monospace" fontWeight="bold"
                       className="svg-label">
-                  {a.mode ?? int_.kind}
+                  {modeLabel} → Drone #{droneNum}
                 </text>
               </g>
             );
           })}
 
           {/* Tracks */}
-          {tracks.map((t: any) => {
+          {tracks.map((t: any, trackIdx: number) => {
             const [tx2, ty2] = toSvg(t.pos_3d[0], t.pos_3d[1]);
             const isReal   = t.origin === "real";
             const col      = isReal ? "#5cf2c0" : "#fcb045";
@@ -454,19 +608,21 @@ export function AirspaceCanvas() {
             const dy = t.pos_3d[1] - ASSET.pos[1];
             const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
             const speed = t.vel ? Math.round(Math.sqrt(t.vel[0]**2 + t.vel[1]**2) * 10) / 10 : 0;
+            const num = droneNumber(t.id);
 
             // Velocity vector
             const vx = t.vel?.[0] ?? 0, vy = t.vel?.[1] ?? 0;
             const vScale = 3;
             const [vtx, vty] = toSvg(t.pos_3d[0] + vx * vScale, t.pos_3d[1] + vy * vScale);
 
-            // Label placement: close to asset → label above with stem; far → label to right
+            // Anti-collision label position
+            const labelPos = trackLabelPositions[trackIdx] ?? { x: tx2 + 53, y: ty2 };
             const closeToAsset = dist < 80;
-            const labelX = closeToAsset ? tx2 : tx2 + 16;
-            const labelY = closeToAsset ? ty2 - 30 : ty2 - 5;
+            const labelX = labelPos.x;
+            const labelY = labelPos.y;
             const labelAnchor = closeToAsset ? "middle" : "start";
 
-            const tooltipText = `${isReal ? "🟢 Real drone" : "🟡 Simulated drone"}: Track ${t.id.toUpperCase()}\n${conf}% confidence · ${dist}m from asset · ${speed > 0 ? `closing at ${speed} m/s` : "stationary"}${isAssigned ? "\n⚡ Actively engaged by interceptor" : ""}`;
+            const tooltipText = `${isReal ? "🟢 Real drone" : "🟡 Simulated drone"}: Drone #${num} (track ID ${t.id.toUpperCase()})\n${conf}% confident classification · ${dist}m from asset${speed > 0 ? ` · closing at ${speed} m/s` : " · stationary"}${isAssigned ? "\n⚡ Currently being engaged by an interceptor" : ""}`;
 
             return (
               <g key={t.id}
@@ -501,22 +657,39 @@ export function AirspaceCanvas() {
 
                 {/* Stem line when label is above (close to asset) */}
                 {closeToAsset && (
-                  <line x1={tx2} y1={ty2 - 14} x2={tx2} y2={ty2 - 24}
+                  <line x1={tx2} y1={ty2 - 14} x2={tx2} y2={labelY + 16}
                         stroke={col} strokeWidth="1" strokeOpacity="0.5" />
                 )}
 
-                {/* Label box */}
-                <rect x={closeToAsset ? tx2 - 40 : tx2 + 14} y={labelY - 12} width={78} height={28} rx="3"
-                      fill="rgba(11,15,23,0.82)" />
+                {/* Label box with background */}
+                <rect
+                  x={labelAnchor === "middle" ? labelX - 47 : labelX - 2}
+                  y={labelY - 14}
+                  width={92}
+                  height={32}
+                  rx="3"
+                  fill="rgba(11,15,23,0.88)"
+                  stroke={col}
+                  strokeWidth="0.5"
+                  strokeOpacity="0.4"
+                />
+                {/* Big plain-English drone name */}
                 <text x={labelX} y={labelY} textAnchor={labelAnchor} fill={col}
                       fontSize="9.5" fontFamily="monospace" fontWeight="bold"
                       className="svg-label">
-                  {t.id.toUpperCase()} {conf}%
+                  Drone #{num}
                 </text>
-                <text x={labelX} y={labelY + 12} textAnchor={labelAnchor} fill="#7c869b"
-                      fontSize="8.5" fontFamily="monospace"
+                {/* Tiny technical ID */}
+                <text x={labelX} y={labelY + 9} textAnchor={labelAnchor} fill="#7c869b"
+                      fontSize="7" fontFamily="monospace"
                       className="svg-label">
-                  {dist}m to asset
+                  · {t.id.toUpperCase()}
+                </text>
+                {/* Confidence + distance */}
+                <text x={labelX} y={labelY + 18} textAnchor={labelAnchor} fill="#7c869b"
+                      fontSize="7.5" fontFamily="monospace"
+                      className="svg-label">
+                  {conf}% · {dist}m
                 </text>
               </g>
             );
@@ -526,7 +699,7 @@ export function AirspaceCanvas() {
           {tracks.length === 0 && (
             <text x={SVG_SIZE / 2} y={SVG_SIZE / 2 + 10} textAnchor="middle"
                   fill="#7c869b" fontSize="14" fontFamily="monospace">
-              📡 Awaiting airspace tracks…
+              📡 Waiting for drones to appear in airspace…
             </text>
           )}
         </svg>
@@ -549,7 +722,7 @@ export function AirspaceCanvas() {
               borderRadius: "6px",
               padding: "6px 10px",
               color: "#c0cad9",
-              maxWidth: "260px",
+              maxWidth: "280px",
               boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
             }}
           >
@@ -585,18 +758,18 @@ export function AirspaceCanvas() {
               }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="text-base font-bold mb-4" style={{ color: "#5cf2c0" }}>❓ What am I looking at?</div>
+              <div className="text-base font-bold mb-4" style={{ color: "#5cf2c0" }}>❓ How to read this airspace</div>
               <div className="flex flex-col gap-2 text-[12px]">
-                <div><span style={{ color: "#5cf2c0" }}>● Green X-icon</span> — Real drone detected by a live sensor. The confidence % shows how sure the system is.</div>
-                <div><span style={{ color: "#fcb045" }}>● Yellow X-icon</span> — Simulated/drill drone from scenario data (not a real threat in this demo).</div>
-                <div><span style={{ color: "#4facfe" }}>▲ Blue triangle</span> — RF Jammer interceptor. Disrupts drone communications &amp; navigation.</div>
-                <div><span style={{ color: "#ff5c5c" }}>▲ Red triangle</span> — Kinetic interceptor. Physical intercept (net, projectile).</div>
-                <div><span style={{ color: "#c084fc" }}>▲ Purple triangle</span> — GPS Spoofer interceptor. Sends false GPS signals to mislead the drone.</div>
-                <div><span style={{ color: "#ff5c5c" }}>⬢ Red hexagon</span> — The protected asset (data center). If drones enter this perimeter, threat is imminent.</div>
-                <div><span style={{ color: "#fcb045" }}>- - - dashed line</span> — Active assignment: this interceptor is engaging this drone right now.</div>
-                <div><span style={{ color: "#fcb045" }}>◯ Yellow ring</span> — The drone inside this ring is currently being engaged.</div>
+                <div><span style={{ color: "#5cf2c0" }}>● Green drone icon</span> — A real drone detected by a live sensor. The % shows how confident the AI is that it really is a hostile drone.</div>
+                <div><span style={{ color: "#fcb045" }}>● Yellow drone icon</span> — A simulated drone injected from scenario data (not a real threat in this demo).</div>
+                <div><span style={{ color: "#4facfe" }}>▲ Blue triangle (Radio Jammer)</span> — Disrupts the drone&apos;s radio link. The drone loses contact with its operator and returns home or descends safely.</div>
+                <div><span style={{ color: "#ff5c5c" }}>▲ Red triangle (Kinetic)</span> — Physically intercepts the drone with a net, projectile, or interceptor drone.</div>
+                <div><span style={{ color: "#c084fc" }}>▲ Purple triangle (GPS Spoofer)</span> — Sends false GPS coordinates to redirect the drone to a safe landing zone.</div>
+                <div><span style={{ color: "#ff5c5c" }}>⬢ Red hexagon</span> — The protected asset (data center). If a drone enters this zone, threat is imminent.</div>
+                <div><span style={{ color: "#fcb045" }}>- - - Dashed line</span> — This interceptor is actively engaging this drone right now.</div>
+                <div><span style={{ color: "#fcb045" }}>◯ Yellow ring on a drone</span> — This drone is currently being engaged by an interceptor.</div>
                 <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "#7c869b" }}>
-                  Range rings (50m, 100m, 200m) show the asset&apos;s defensive perimeters. The compass shows orientation.
+                  Range rings (50m, 100m, 200m) show the asset&apos;s defensive perimeters. Hover any element for more detail.
                 </div>
               </div>
               <button
