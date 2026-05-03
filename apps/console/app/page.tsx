@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo } from "react";
+import { Panel, Group as PanelGroup, Separator as ResizeHandle } from "react-resizable-panels";
 import { Header } from "@/components/Header";
 import { AirspaceCanvas } from "@/components/AirspaceCanvas";
 import { ActivityTheatre } from "@/components/ActivityTheatre";
@@ -43,22 +44,78 @@ export default function Page() {
         {/* Escalation Banner */}
         <EscalationBanner />
 
-        {/* Main body: 9/3 column split */}
-        <div className="grid grid-cols-12 gap-3">
-          {/* Left+Center: map + theatre */}
-          <div className="col-span-12 lg:col-span-9 flex flex-col gap-3 min-h-0">
-            <AirspaceCanvas />
-            <ActivityTheatre />
-          </div>
+        {/* Main resizable body: left (airspace + theatre) | right (stack + chat + plan) */}
+        <PanelGroup
+          orientation="horizontal"
+          style={{ display: "flex", minHeight: "700px" }}
+        >
+          {/* Left panel: airspace (top) + pipeline theatre (bottom) */}
+          <Panel defaultSize={75} minSize={50}>
+            {/* Inner vertical split: airspace / theatre */}
+            <PanelGroup
+              orientation="vertical"
+              style={{ display: "flex", flexDirection: "column", height: "100%" }}
+            >
+              {/* Airspace panel */}
+              <Panel defaultSize={60} minSize={35}>
+                <div style={{ height: "100%", paddingRight: "6px", paddingBottom: "0" }}>
+                  <AirspaceCanvas />
+                </div>
+              </Panel>
 
-          {/* Right column: stack sidebar + chat + plan */}
-          <div className="col-span-12 lg:col-span-3 flex flex-col gap-3 min-h-0 lg:sticky lg:top-3 lg:self-start"
-               style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto" }}>
-            <StackSidebar />
-            <NlipChat client={nlip} />
-            <PlanPanel />
-          </div>
-        </div>
+              {/* Vertical drag handle */}
+              <ResizeHandle
+                style={{
+                  height: "6px",
+                  cursor: "row-resize",
+                  margin: "2px 6px 2px 0",
+                  borderRadius: "3px",
+                  flexShrink: 0,
+                }}
+                className="resize-handle-bar resize-handle-vertical"
+              />
+
+              {/* Activity theatre panel */}
+              <Panel defaultSize={40} minSize={20}>
+                <div style={{ height: "100%", paddingRight: "6px", paddingTop: "4px" }}>
+                  <ActivityTheatre />
+                </div>
+              </Panel>
+            </PanelGroup>
+          </Panel>
+
+          {/* Horizontal drag handle */}
+          <ResizeHandle
+            style={{
+              width: "6px",
+              cursor: "col-resize",
+              margin: "0 2px",
+              borderRadius: "3px",
+              flexShrink: 0,
+            }}
+            className="resize-handle-bar resize-handle-horizontal"
+          />
+
+          {/* Right panel: stack sidebar + chat + plan */}
+          <Panel
+            defaultSize={25}
+            minSize={20}
+            maxSize={45}
+          >
+            <div style={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              overflowY: "auto",
+              paddingLeft: "6px",
+            }}>
+              <StackSidebar />
+              <NlipChat client={nlip} />
+              <PlanPanel />
+            </div>
+          </Panel>
+        </PanelGroup>
 
         {/* Bottom: cost curve + event tape */}
         <div className="grid grid-cols-12 gap-3">
@@ -70,6 +127,23 @@ export default function Page() {
           </div>
         </div>
       </div>
+
+      {/* Global resize handle styles */}
+      <style>{`
+        .resize-handle-bar {
+          background: rgba(92,242,192,0.08);
+          border: 1px solid rgba(92,242,192,0.14);
+          transition: background 0.18s, border-color 0.18s;
+        }
+        .resize-handle-bar:hover,
+        .resize-handle-bar[data-active] {
+          background: rgba(92,242,192,0.28) !important;
+          border-color: rgba(92,242,192,0.55) !important;
+        }
+        [data-group] {
+          outline: none;
+        }
+      `}</style>
     </main>
   );
 }
