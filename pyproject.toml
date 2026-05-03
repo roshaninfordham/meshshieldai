@@ -11,6 +11,7 @@ meshshield-protocol = { workspace = true }
 
 [dependency-groups]
 dev = [
+  "datamodel-code-generator>=0.56.1",
   "jsonschema>=4.26.0",
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
