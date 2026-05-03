@@ -10,6 +10,9 @@ from .snapshot_subscriber import SnapshotSubscriber
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store = AgentStore()
+    from .event_bus import EventBus
+    bus = EventBus(store=store)
+    app.state.bus = bus
     subscriber = SnapshotSubscriber(
         url=os.getenv("FUSION_SNAPSHOT_WS", "ws://localhost:8001/snapshot"),
         store=store,
