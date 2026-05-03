@@ -1,0 +1,7 @@
+{
+  "v": 1, "snapshot_id": "snap-fixture-1", "ts": 1714680000.250,
+  "tracks": [
+    {"id":"t-001","origin":"real","pos_3d":[120.4,88.1,35.0],"vel":[12.0,-3.2,0.5],"conf":0.88,"nearest_asset_m":47.2},
+    {"id":"t-002","origin":"simulated","pos_3d":[150.0,90.0,40.0],"vel":[8.0,-2.0,0.0],"conf":0.74,"nearest_asset_m":80.0}
+  ]
+}
