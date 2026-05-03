@@ -20,9 +20,14 @@ class _AG2LLM:
         self._cfg = None
         self._Agent = None
         self._agents: dict[str, object] = {}
+        self._stubbed = False
 
     def _ensure_loaded(self) -> None:
-        if self._cfg is not None:
+        if self._cfg is not None or self._stubbed:
+            return
+        key = self._api_key or os.environ.get("OPENROUTER_API_KEY")
+        if not key:
+            self._stubbed = True
             return
         from autogen.beta import Agent
         from autogen.beta.config import OpenAIConfig
@@ -30,13 +35,15 @@ class _AG2LLM:
         self._cfg = OpenAIConfig(
             model=self._model,
             streaming=False,
-            api_key=self._api_key or os.environ["OPENROUTER_API_KEY"],
+            api_key=key,
             base_url="https://openrouter.ai/api/v1",
             max_completion_tokens=1024,
         )
 
     async def ask(self, name: str, prompt: str) -> str:
         self._ensure_loaded()
+        if self._stubbed:
+            return "(stub: OPENROUTER_API_KEY not set)"
         if name not in self._agents:
             self._agents[name] = self._Agent(config=self._cfg, name=name)
         reply = await self._agents[name].ask(prompt)

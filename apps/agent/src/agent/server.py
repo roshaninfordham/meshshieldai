@@ -2,6 +2,8 @@ from __future__ import annotations
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
+from .nlip.server import router as nlip_router
+
 
 def include_routes(app: FastAPI) -> None:
     @app.get("/health")
@@ -19,3 +21,5 @@ def include_routes(app: FastAPI) -> None:
             return
         finally:
             app.state.bus.unsubscribe(sub)
+
+    app.include_router(nlip_router)
