@@ -1,0 +1,27 @@
+[project]
+name = "meshshield-ai"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = ["apps/fusion", "apps/agent", "packages/protocol"]
+
+[tool.uv.sources]
+meshshield-protocol = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "datamodel-code-generator>=0.56.1",
+  "jsonschema>=4.26.0",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pyyaml>=6.0.3",
+  "respx>=0.21",
+  "ruff>=0.7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "apps/fusion/tests", "apps/agent/tests", "packages/protocol/tests"]
+asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
+markers = ["live: hits external services; opt-in"]

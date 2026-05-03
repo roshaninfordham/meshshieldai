@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "scenario_id": "data-center-swarm-attack",
+  "duration_s": 30,
+  "asset": {
+    "asset_id": "datacenter-A",
+    "name": "Hyperscaler DC East",
+    "center_xyz": [0.0, 0.0, 0.0],
+    "radius_m": 60.0
+  },
+  "interceptors": [
+    {"id": "i-001", "kind": "rf_jam",  "pos_3d": [-50,  -10, 0], "range_m": 250},
+    {"id": "i-002", "kind": "kinetic", "pos_3d": [ 50,  -10, 0], "range_m": 200},
+    {"id": "i-003", "kind": "spoof",   "pos_3d": [-10,   60, 0], "range_m": 300},
+    {"id": "i-004", "kind": "rf_jam",  "pos_3d": [ 10,   60, 0], "range_m": 250}
+  ],
+  "events": [
+    {"t":  0.0, "spawn": {"id":"t-001","origin":"real","pos_3d":[ 200,  150, 50],"vel":[-12, -9,  0.0],"conf":0.92}},
+    {"t":  0.5, "spawn": {"id":"t-002","origin":"simulated","pos_3d":[-220,  180, 60],"vel":[ 11, -8,  0.0],"conf":0.81}},
+    {"t":  1.0, "spawn": {"id":"t-003","origin":"simulated","pos_3d":[ 240, -160, 55],"vel":[-10,  9,  0.0],"conf":0.78}},
+    {"t":  1.5, "spawn": {"id":"t-004","origin":"simulated","pos_3d":[-260, -180, 65],"vel":[ 12,  8, -0.5],"conf":0.66}},
+    {"t":  6.0, "spawn": {"id":"t-005","origin":"simulated","pos_3d":[ 300,    0, 45],"vel":[-13,  0,  0.0],"conf":0.74}},
+    {"t":  6.5, "spawn": {"id":"t-006","origin":"simulated","pos_3d":[-300,    0, 55],"vel":[ 13,  0,  0.0],"conf":0.71}},
+    {"t":  9.0, "spawn": {"id":"t-007","origin":"simulated","pos_3d":[   0,  320, 70],"vel":[  0,-12,  0.0],"conf":0.83}},
+    {"t":  9.5, "spawn": {"id":"t-008","origin":"simulated","pos_3d":[   0, -320, 70],"vel":[  0, 12,  0.0],"conf":0.59}},
+    {"t": 18.0, "burst": {"count": 6, "ring_radius_m": 400, "altitude_m": 50, "speed_m_s": 11, "origin":"simulated", "id_prefix": "t-9"}}
+  ]
+}

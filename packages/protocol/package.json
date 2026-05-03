@@ -1,0 +1,17 @@
+{
+  "name": "@meshshield/protocol",
+  "private": true,
+  "version": "0.1.0",
+  "main": "ts/src/index.ts",
+  "types": "ts/src/index.ts",
+  "scripts": {
+    "gen": "node scripts/generate.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.3",
+    "vitest": "^2.1.4"
+  }
+}

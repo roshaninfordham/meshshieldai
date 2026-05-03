@@ -1,0 +1,7 @@
+{
+  "name": "@meshshield/scenarios",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.js",
+  "files": ["data-center-swarm-attack.json", "policy.json", "assets"]
+}

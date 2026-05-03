@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meshshield.ai/schemas/agent-event.json",
+  "title": "AgentEvent",
+  "type": "object",
+  "required": ["kind", "ts"],
+  "properties": {
+    "kind": {"type": "string", "enum": [
+      "stage_started", "stage_finished", "stage_failed",
+      "tool_call_started", "tool_call_finished",
+      "agent_message", "plan_ready", "escalation_raised"
+    ]},
+    "ts":    {"type": "number"},
+    "agent": {"type": "string", "enum": ["prioritizer","allocator","justifier","escalator","watch_commander"]},
+    "tool":              {"type": "string"},
+    "args":              {"type": "object"},
+    "result_summary":    {"type": "string"},
+    "ms":                {"type": "integer"},
+    "preview":           {"type": "string"},
+    "full_id":           {"type": "string"},
+    "tokens":            {"type": "integer"},
+    "output_summary":    {"type": "string"},
+    "plan_id":           {"type": "string"},
+    "plan":              {"type": "object", "description": "Full ResponsePlan body, present on plan_ready events so the console can render without a separate fetch."},
+    "reason":            {"type": "string"},
+    "error":             {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"osm_id": 0, "name": "Hyperscaler DC East (synthetic)"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.1700, 37.4270],
+          [-122.1700, 37.4280],
+          [-122.1690, 37.4280],
+          [-122.1690, 37.4270],
+          [-122.1700, 37.4270]
+        ]]
+      }
+    }
+  ]
+}

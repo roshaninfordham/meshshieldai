@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meshshield.ai/schemas/snapshot.json",
+  "title": "Snapshot",
+  "type": "object",
+  "required": ["v", "snapshot_id", "ts", "tracks"],
+  "additionalProperties": false,
+  "properties": {
+    "v":           {"type": "integer", "const": 1},
+    "snapshot_id": {"type": "string"},
+    "ts":          {"type": "number"},
+    "tracks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "origin", "pos_3d", "vel", "conf"],
+        "additionalProperties": false,
+        "properties": {
+          "id":              {"type": "string"},
+          "origin":          {"type": "string", "enum": ["real", "simulated"]},
+          "pos_3d":          {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+          "vel":             {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+          "conf":            {"type": "number", "minimum": 0, "maximum": 1},
+          "nearest_asset_m": {"type": "number"}
+        }
+      }
+    }
+  }
+}
