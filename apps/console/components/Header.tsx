@@ -1,6 +1,7 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMeshStore } from "@/lib/store";
+import { GlossaryModal } from "./GlossaryModal";
 
 function getDefconLevel(tape: any[]): { level: number; color: string; label: string } {
   const now = Date.now() / 1000;
@@ -22,6 +23,7 @@ export function Header({ scenario }: { scenario: string }) {
   const tickCount = useMemo(() => tape.filter((e: any) => e.kind === "plan_ready").length, [tape]);
   const demoActive = useMeshStore((s) => s.demo.active);
   const defcon = useMemo(() => getDefconLevel(tape), [tape]);
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
 
   return (
     <div>
@@ -89,7 +91,7 @@ export function Header({ scenario }: { scenario: string }) {
           </div>
         </div>
 
-        {/* Right: Chips + operator badge */}
+        {/* Right: Chips + operator badge + Glossary */}
         <div className="flex items-center gap-2 text-xs">
           <span className="rounded-md px-2 py-1 font-mono font-bold"
                 style={{ background: "rgba(92,242,192,0.12)", color: "#5cf2c0" }}>
@@ -104,8 +106,24 @@ export function Header({ scenario }: { scenario: string }) {
                          border: "1px solid rgba(79,172,254,0.25)" }}>
             📡 OPERATOR: Demo · ROLE: Commander
           </span>
+
+          {/* Glossary button */}
+          <button
+            onClick={() => setGlossaryOpen(true)}
+            className="rounded-md px-2 py-1 font-mono font-bold text-xs transition-colors"
+            style={{
+              background: "rgba(252,176,69,0.12)",
+              color: "#fcb045",
+              border: "1px solid rgba(252,176,69,0.3)",
+            }}
+            title="Open glossary — every term explained"
+          >
+            📖 Glossary
+          </button>
         </div>
       </header>
+
+      <GlossaryModal open={glossaryOpen} onClose={() => setGlossaryOpen(false)} />
     </div>
   );
 }

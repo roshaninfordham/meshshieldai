@@ -91,14 +91,19 @@ export function ActivityTheatre() {
     >
       {/* Header */}
       <div
-        className="flex items-center gap-3 px-4 py-2 text-xs font-mono"
+        className="px-4 py-2.5"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <span className="font-bold" style={{ color: "#5cf2c0" }}>⚡ MULTI-AGENT PIPELINE</span>
-        <span style={{ color: "#7c869b" }}>4 agents · sequential handoff</span>
-        <span className="ml-auto text-[10px]" style={{ color: "#7c869b" }}>
-          PRIORITIZER → ALLOCATOR → JUSTIFIER → ESCALATOR
-        </span>
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <span className="font-bold" style={{ color: "#5cf2c0" }}>⚡ MULTI-AGENT PIPELINE</span>
+          <span style={{ color: "#7c869b" }}>4 agents · sequential handoff</span>
+          <span className="ml-auto text-[10px]" style={{ color: "#7c869b" }}>
+            PRIORITIZER → ALLOCATOR → JUSTIFIER → ESCALATOR
+          </span>
+        </div>
+        <div className="text-[10px] font-mono mt-0.5 italic" style={{ color: "#7c869b" }}>
+          Four specialist AI agents thinking step by step — each hands its output to the next
+        </div>
       </div>
 
       {/* Cards row — no fixed height, no react-flow waste */}

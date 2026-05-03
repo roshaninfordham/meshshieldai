@@ -65,10 +65,15 @@ export function NlipChat({ client }: { client: NlipClient }) {
     <div className={`flex flex-col rounded-xl ring-1 ring-white/10 p-3 h-[360px] transition-shadow duration-300 ${hlClass}`}
          style={{ background: "#0d1320" }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-mono font-bold" style={{ color: "#5cf2c0" }}>
-          📡 WATCH COMMANDER · NLIP/WS
-        </span>
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <span className="text-xs font-mono font-bold" style={{ color: "#5cf2c0" }}>
+            📡 WATCH COMMANDER
+          </span>
+          <div className="text-[10px] font-mono italic mt-0.5" style={{ color: "#7c869b" }}>
+            Ask anything about the current threat picture
+          </div>
+        </div>
         {busy && (
           <span className="text-[11px] font-mono animate-pulse" style={{ color: "#fcb045" }}>
             streaming…

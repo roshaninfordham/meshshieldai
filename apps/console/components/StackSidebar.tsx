@@ -197,9 +197,15 @@ export function StackSidebar() {
     <div className="rounded-xl ring-1 ring-white/10 overflow-hidden"
          style={{ background: "#0f1420" }}>
       {/* Header */}
-      <div className="px-4 py-2.5 text-[11px] font-bold tracking-widest uppercase"
-           style={{ color: "#5cf2c0", borderBottom: "1px solid rgba(255,255,255,0.07)", letterSpacing: "0.12em" }}>
-        ⚡ Powered By
+      <div className="px-4 py-2.5"
+           style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="text-[11px] font-bold tracking-widest uppercase"
+             style={{ color: "#5cf2c0", letterSpacing: "0.12em" }}>
+          ⚡ Powered By
+        </div>
+        <div className="text-[10px] font-mono mt-0.5 italic" style={{ color: "#7c869b" }}>
+          Frameworks running this system right now
+        </div>
       </div>
 
       {rows.map((row) => (
