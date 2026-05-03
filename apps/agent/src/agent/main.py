@@ -41,12 +41,15 @@ async def lifespan(app: FastAPI):
         store=store)
     sub_task = asyncio.create_task(subscriber.run())
 
+    # Policy overrides (set via POST /policy endpoint)
+    app.state.policy_overrides = {}
+
     llm = _build_llm()
     sim = make_simulate_intercept_path(daytona_base_url=os.getenv("DAYTONA_BASE_URL"),
                                        daytona_api_key=os.getenv("DAYTONA_API_KEY"))
     tavily = make_tavily_recent_threats(api_key=os.getenv("TAVILY_API_KEY"))
     list_int = make_list_available_interceptors(SCENARIO_PATH)
-    get_policy = make_get_policy_thresholds(POLICY_PATH)
+    get_policy = make_get_policy_thresholds(POLICY_PATH, overrides_provider=lambda: app.state.policy_overrides)
 
     prioritizer = Prioritizer(llm)
     allocator   = Allocator(llm, interceptors=list_int(), simulate=sim, snapshot_provider=store.latest_snapshot)

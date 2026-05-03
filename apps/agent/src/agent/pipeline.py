@@ -42,5 +42,47 @@ class Pipeline:
         return plan
 
 def _summarize(obj) -> str:
+    """Produce a human-readable one-liner for each agent output shape."""
+    if not isinstance(obj, dict):
+        s = str(obj)
+        return (s[:120] + "…") if len(s) > 120 else s
+
+    # Prioritizer: {prioritized: [{target_id, risk_score, ...}]}
+    if "prioritized" in obj and isinstance(obj["prioritized"], list):
+        items = obj["prioritized"]
+        top = ", ".join(
+            f"{r.get('target_id','?').upper()} ({r.get('risk_score',0):.2f})"
+            for r in items[:5]
+        )
+        return f"Top {len(items)} targets ranked by risk: {top}"
+
+    # Allocator: {allocations: [{target_id, interceptor_id, mode, priority}]}
+    if "allocations" in obj and isinstance(obj["allocations"], list):
+        parts = ", ".join(
+            f"{a.get('target_id','?')}→{a.get('interceptor_id','?')} {a.get('mode','?')}"
+            for a in obj["allocations"][:6]
+        )
+        return f"Assigned {len(obj['allocations'])} pairs: {parts}"
+
+    # Justifier: {justified: [{target_id, justification:{snapshot_refs,tavily_refs,policy_refs}}]}
+    if "justified" in obj and isinstance(obj["justified"], list):
+        j = obj["justified"]
+        snap_c = sum(len(x.get("justification", {}).get("snapshot_refs", [])) for x in j)
+        tav_c  = sum(len(x.get("justification", {}).get("tavily_refs",  [])) for x in j)
+        pol_c  = sum(len(x.get("justification", {}).get("policy_refs",  [])) for x in j)
+        return (f"Justified {len(j)} assignments · "
+                f"{snap_c} snapshot refs · {tav_c} Tavily refs · {pol_c} policy refs")
+
+    # Escalator / final plan: {assignments:[...], escalation:{required, reasons}}
+    if "assignments" in obj and "escalation" in obj:
+        esc = obj["escalation"]
+        req = esc.get("required", False)
+        reasons = "; ".join(esc.get("reasons", []))
+        esc_str = f"REQUIRED ({reasons})" if req else "not required"
+        return (f"Plan {obj.get('plan_id','?')} · "
+                f"{len(obj.get('assignments',[]))} assignments · "
+                f"escalation {esc_str}")
+
+    # Fallback
     s = str(obj)
     return (s[:120] + "…") if len(s) > 120 else s
