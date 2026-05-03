@@ -12,6 +12,7 @@ import { CostCurveOverlay } from "@/components/CostCurveOverlay";
 import { EscalationBanner } from "@/components/EscalationBanner";
 import { DemoController } from "@/components/DemoController";
 import { DemoNarration } from "@/components/DemoNarration";
+import { WelcomeModal } from "@/components/WelcomeModal";
 import { connectSnapshotStream } from "@/lib/streams/snapshot";
 import { connectAgentStream } from "@/lib/streams/agent";
 import { createNlipClient } from "@/lib/nlip/client";
@@ -28,6 +29,7 @@ export default function Page() {
 
   return (
     <main className="overflow-x-hidden" style={{ background: "#0b0f17", minHeight: "100vh" }}>
+      <WelcomeModal />
       <DemoController client={nlip} />
       <DemoNarration />
 

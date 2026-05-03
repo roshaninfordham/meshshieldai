@@ -1,15 +1,9 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ActivityTheatre } from "@/components/ActivityTheatre";
 import { useMeshStore } from "@/lib/store";
 
-vi.mock("reactflow", () => ({
-  __esModule: true,
-  default: ({ nodes }: any) => (
-    <div data-testid="rf">{nodes.map((n: any) => <div key={n.id}>{n.data?.label}</div>)}</div>
-  ),
-  Background: () => null, Controls: () => null,
-}));
+// No react-flow dependency — ActivityTheatre now uses a plain CSS grid.
 
 describe("ActivityTheatre", () => {
   it("renders the four pipeline agents in order", () => {

@@ -9,6 +9,7 @@ vi.mock("@/components/StackSidebar",   () => ({ StackSidebar:   () => <div data-
 vi.mock("@/components/ActivityTheatre", () => ({ ActivityTheatre: () => <div data-testid="theatre" /> }));
 vi.mock("@/components/CostCurveOverlay", () => ({ CostCurveOverlay: () => <div>COST-CURVE</div> }));
 vi.mock("@/components/EventTape",        () => ({ EventTape:        () => <div>EVENT TAPE</div> }));
+vi.mock("@/components/WelcomeModal",     () => ({ WelcomeModal:     () => null }));
 vi.mock("@/lib/demo/controller", () => ({
   startDemo: vi.fn(),
   stopDemo: vi.fn(),

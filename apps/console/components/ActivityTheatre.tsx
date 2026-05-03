@@ -1,7 +1,5 @@
 "use client";
-import ReactFlow, { Background, Controls } from "reactflow";
-import "reactflow/dist/style.css";
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { AgentCard } from "./AgentCard";
 import { useMeshStore, type AgentName } from "@/lib/store";
 import type { HighlightTarget } from "@/lib/demo/script";
@@ -43,86 +41,84 @@ const PIPELINE: Array<{
   },
 ];
 
-const EDGE_STYLE = {
-  stroke: "#5cf2c0",
-  strokeWidth: 3,
-};
-
-const ANIMATED_EDGE_STYLE = {
-  stroke: "#5cf2c0",
-  strokeWidth: 4,
-  strokeDasharray: "8 4",
-  filter: "drop-shadow(0 0 4px rgba(92,242,192,0.7))",
-};
+/** Arrow between two pipeline stages. Glows when the previous stage just finished. */
+function PipelineArrow({ active }: { active: boolean }) {
+  return (
+    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: "32px" }}>
+      <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
+        <defs>
+          <filter id="arrow-glow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <line
+          x1="2" y1="12" x2="24" y2="12"
+          stroke={active ? "#5cf2c0" : "rgba(92,242,192,0.25)"}
+          strokeWidth={active ? "2.5" : "1.5"}
+          strokeDasharray={active ? "none" : "4 3"}
+          filter={active ? "url(#arrow-glow)" : undefined}
+          style={{ transition: "all 0.4s ease" }}
+        />
+        <polygon
+          points="22,7 30,12 22,17"
+          fill={active ? "#5cf2c0" : "rgba(92,242,192,0.25)"}
+          filter={active ? "url(#arrow-glow)" : undefined}
+          style={{ transition: "all 0.4s ease" }}
+        />
+      </svg>
+    </div>
+  );
+}
 
 export function ActivityTheatre() {
   const agents = useMeshStore((s) => s.agents);
   const currentHighlight = useMeshStore((s) => s.demo.highlight);
 
-  const nodes = useMemo(() =>
-    PIPELINE.map((a, i) => ({
-      id: a.name as string,
-      position: { x: i * 300, y: 0 },
-      data: {
-        label: a.label,
-        cardProps: {
-          ...a,
-          state: agents[a.name].state,
-          tools: agents[a.name].tools,
-          lastMessage: agents[a.name].lastMessage,
-          highlighted: currentHighlight === a.highlightTarget,
-          usesLabel: a.usesLabel,
-        },
-      },
-      type: "agent",
-    })), [agents, currentHighlight]);
-
-  const edges = useMemo(() =>
-    PIPELINE.slice(0, -1).map((a, i) => {
-      const isAnimated = agents[a.name].state === "done" &&
-                         agents[PIPELINE[i+1].name].state !== "idle";
-      return {
-        id: `${a.name}->${PIPELINE[i+1].name}`,
-        source: a.name as string,
-        target: PIPELINE[i+1].name as string,
-        animated: isAnimated,
-        style: isAnimated ? ANIMATED_EDGE_STYLE : EDGE_STYLE,
-        markerEnd: "url(#arrowhead)",
-      };
-    }), [agents]);
-
-  const nodeTypes = useMemo(() => ({
-    agent: ({ data }: any) => <AgentCard {...data.cardProps} label={data.label} />,
-  }), []);
+  const isArrowActive = (fromIdx: number) => {
+    const from = PIPELINE[fromIdx];
+    const to   = PIPELINE[fromIdx + 1];
+    return (
+      agents[from.name].state === "done" &&
+      agents[to.name].state !== "idle"
+    );
+  };
 
   return (
-    <div className="h-[380px] rounded-xl ring-1 ring-white/10 relative"
-         style={{ background: "#0b0f17" }}>
+    <div
+      className="rounded-xl ring-1 ring-white/10"
+      style={{ background: "#0b0f17" }}
+    >
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 py-2 text-xs font-mono"
-           style={{ background: "rgba(11,15,23,0.9)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <div
+        className="flex items-center gap-3 px-4 py-2 text-xs font-mono"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
         <span className="font-bold" style={{ color: "#5cf2c0" }}>⚡ MULTI-AGENT PIPELINE</span>
         <span style={{ color: "#7c869b" }}>4 agents · sequential handoff</span>
         <span className="ml-auto text-[10px]" style={{ color: "#7c869b" }}>
           PRIORITIZER → ALLOCATOR → JUSTIFIER → ESCALATOR
         </span>
       </div>
-      <div style={{ width: "100%", height: "100%", paddingTop: "32px" }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.15 }}
-        >
-          <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#5cf2c0" />
-            </marker>
-          </defs>
-          <Background gap={20} color="rgba(255,255,255,0.04)" />
-          <Controls position="top-right" />
-        </ReactFlow>
+
+      {/* Cards row — no fixed height, no react-flow waste */}
+      <div className="flex items-stretch gap-0 px-3 py-3">
+        {PIPELINE.map((agent, idx) => (
+          <div key={agent.name} className="flex items-center flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
+              <AgentCard
+                {...agent}
+                state={agents[agent.name].state}
+                tools={agents[agent.name].tools}
+                lastMessage={agents[agent.name].lastMessage}
+                highlighted={currentHighlight === agent.highlightTarget}
+              />
+            </div>
+            {idx < PIPELINE.length - 1 && (
+              <PipelineArrow active={isArrowActive(idx)} />
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

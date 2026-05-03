@@ -36,7 +36,9 @@ export function PlanPanel() {
                 <td className="font-mono text-accent">{a?.mode ?? "—"}</td>
                 <td className="text-center">{a?.priority ?? "—"}</td>
                 <td className="text-[11px] text-white/70">
-                  {refs.length > 0 ? refs.join("  ·  ") : <span className="text-muted italic">no refs</span>}
+                  {refs.length > 0
+                    ? refs.join("  ·  ")
+                    : <span className="text-muted italic">(awaiting Justifier — Tavily may be rate-limited)</span>}
                 </td>
               </tr>
             );
