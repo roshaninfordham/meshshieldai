@@ -15,20 +15,28 @@ class _AG2LLM:
     """Real backend that calls AG2 (autogen.beta) via OpenRouter."""
 
     def __init__(self, model: str, api_key: str | None) -> None:
+        self._model = model
+        self._api_key = api_key
+        self._cfg = None
+        self._Agent = None
+        self._agents: dict[str, object] = {}
+
+    def _ensure_loaded(self) -> None:
+        if self._cfg is not None:
+            return
         from autogen.beta import Agent
         from autogen.beta.config import OpenAIConfig
-
         self._Agent = Agent
         self._cfg = OpenAIConfig(
-            model=model,
+            model=self._model,
             streaming=False,
-            api_key=api_key or os.environ["OPENROUTER_API_KEY"],
+            api_key=self._api_key or os.environ["OPENROUTER_API_KEY"],
             base_url="https://openrouter.ai/api/v1",
             max_completion_tokens=1024,
         )
-        self._agents: dict[str, object] = {}
 
     async def ask(self, name: str, prompt: str) -> str:
+        self._ensure_loaded()
         if name not in self._agents:
             self._agents[name] = self._Agent(config=self._cfg, name=name)
         reply = await self._agents[name].ask(prompt)
