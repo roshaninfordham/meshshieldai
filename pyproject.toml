@@ -23,4 +23,5 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests", "apps/fusion/tests", "apps/agent/tests", "packages/protocol/tests"]
 asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
 markers = ["live: hits external services; opt-in"]
