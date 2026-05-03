@@ -88,9 +88,11 @@ export function AirspaceCanvas() {
   // Tooltip state
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
-  // Clock
-  const [clock, setClock] = useState(() => formatUtcTime(new Date()));
+  // Clock — client-only to avoid SSR/CSR hydration mismatch (timestamp differs by ms between
+  // server render and client mount). Empty string on SSR; real value after mount.
+  const [clock, setClock] = useState("");
   useEffect(() => {
+    setClock(formatUtcTime(new Date()));
     const id = setInterval(() => setClock(formatUtcTime(new Date())), 1000);
     return () => clearInterval(id);
   }, []);
@@ -209,8 +211,8 @@ export function AirspaceCanvas() {
         <span style={{ color: "#4facfe" }}>🛡 {INTERCEPTORS.length} interceptors</span>
         <span style={{ color: "#fcb045" }}>⚡ {assignments.length} assignments</span>
         <span style={{ color: "#7c869b" }}>TICK #{tickCount}</span>
-        <span className="ml-auto font-bold" style={{ color: "#5cf2c0" }}>
-          {clock} UTC · LIVE
+        <span className="ml-auto font-bold" style={{ color: "#5cf2c0" }} suppressHydrationWarning>
+          {clock ? `${clock} UTC · LIVE` : "— LIVE"}
         </span>
       </div>
 
