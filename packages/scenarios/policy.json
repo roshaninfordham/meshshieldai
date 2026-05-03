@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "auto_action_min_conf": 0.7,
+  "escalate_if_tracks_per_asset_gt": 10,
+  "clauses": {
+    "auto_action_min_conf": "Do not auto-action a target whose track confidence is below 0.7.",
+    "escalate_if_tracks_per_asset_gt": "If more than 10 tracks converge on a single protected asset, escalate to a human operator.",
+    "proximity_under_50m": "Any track with nearest_asset_m < 50 is priority 1 by default."
+  }
+}
