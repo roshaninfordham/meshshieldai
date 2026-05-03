@@ -13,8 +13,9 @@ SCENARIO = ROOT / "packages/scenarios" / f"{os.getenv('SCENARIO','data-center-sw
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    scenario_dict = json.loads(SCENARIO.read_text())
     store = TrackStore()
-    player = ScenarioPlayer(store, json.loads(SCENARIO.read_text()))
+    player = ScenarioPlayer(store, scenario_dict)
     publisher = SnapshotPublisher(store=store, player=player, hz=10)
 
     def fanout(payload: str) -> None:
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
             try: q.put_nowait(payload)
             except asyncio.QueueFull: pass
 
+    app.state.scenario_dict = scenario_dict
     app.state.store = store
     app.state.player = player
     app.state.publisher = publisher

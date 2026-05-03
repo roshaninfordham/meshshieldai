@@ -15,6 +15,7 @@ class SnapshotPublisher:
         self._sinks: list[Sink] = sinks or []
         self._running = False
         self._counter = 0
+        self._reset_flag = False
 
     def add_sink(self, sink: Sink) -> None:
         self._sinks.append(sink)
@@ -22,11 +23,22 @@ class SnapshotPublisher:
     def stop(self) -> None:
         self._running = False
 
+    def reset(self, new_player: ScenarioPlayer) -> None:
+        """Swap in a fresh ScenarioPlayer and reset counter + clock.
+        The run loop picks this up at the next iteration."""
+        self._player = new_player
+        self._counter = 0
+        self._reset_flag = True
+
     async def run(self) -> None:
         self._running = True
         start = time.monotonic()
         next_due = start
         while self._running:
+            if self._reset_flag:
+                self._reset_flag = False
+                start = time.monotonic()
+                next_due = start
             now = time.monotonic()
             t_rel = now - start
             self._player.advance_to(t_rel)

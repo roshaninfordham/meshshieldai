@@ -27,3 +27,9 @@ class AgentStore:
         if n is None:
             return list(self._events)
         return list(self._events)[-n:]
+
+    def reset(self) -> None:
+        """Clear all state for a clean demo replay."""
+        self._snapshot = None
+        self._plan = None
+        self._events.clear()

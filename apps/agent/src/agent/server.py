@@ -10,6 +10,11 @@ def include_routes(app: FastAPI) -> None:
     async def health() -> dict:
         return {"status": "ok", "service": "agent"}
 
+    @app.post("/demo/reset")
+    async def demo_reset() -> dict:
+        app.state.store.reset()
+        return {"status": "reset"}
+
     @app.websocket("/events")
     async def events_ws(ws: WebSocket) -> None:
         await ws.accept()
