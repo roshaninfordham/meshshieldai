@@ -21,10 +21,11 @@ describe("MissionControl", () => {
 
   it("renders all main control sections", () => {
     render(<MissionControl />);
-    expect(screen.getByText(/PIPELINE/)).toBeInTheDocument();
-    expect(screen.getByText(/POLICY GATES/)).toBeInTheDocument();
-    expect(screen.getByText(/SCENARIO/)).toBeInTheDocument();
-    expect(screen.getByText(/OPERATOR OVERRIDE/)).toBeInTheDocument();
+    // Use getAllByText since "PIPELINE" may appear in multiple labels
+    expect(screen.getAllByText(/PIPELINE/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/POLICY GATES/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/SCENARIO/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/OPERATOR OVERRIDE/).length).toBeGreaterThan(0);
   });
 
   function findButton(label: RegExp) {

@@ -35,6 +35,55 @@ function StatusPill({ ok }: { ok: boolean | null }) {
   );
 }
 
+/** A labeled slider with prominent value display. */
+function SliderRow({
+  icon,
+  label,
+  subtitle,
+  value,
+  displayValue,
+  min,
+  max,
+  step,
+  onChange,
+  accentClass = "accent-accent",
+}: {
+  icon: string;
+  label: string;
+  subtitle: string;
+  value: number;
+  displayValue: string;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  accentClass?: string;
+}) {
+  return (
+    <div className="mt-2">
+      <div className="flex items-baseline gap-1 mb-0.5">
+        <span className="text-[10px] font-bold font-mono" style={{ color: "#c0cad9" }}>
+          {icon} {label}
+        </span>
+        <span className="text-[9px] font-mono ml-1" style={{ color: "#7c869b" }}>{subtitle}</span>
+        <span className="ml-auto text-[15px] font-bold font-mono tabular-nums" style={{ color: "#5cf2c0", minWidth: "40px", textAlign: "right" }}>
+          {displayValue}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={e => onChange(parseFloat(e.target.value))}
+        className={`w-full h-1.5 rounded ${accentClass}`}
+        style={{ cursor: "pointer" }}
+      />
+    </div>
+  );
+}
+
 export function MissionControl() {
   const [tickS, setTickS]     = useState(2.0);
   const [minConf, setMinConf] = useState(0.70);
@@ -99,6 +148,13 @@ export function MissionControl() {
     </button>
   );
 
+  const SectionDivider = ({ icon, label }: { icon: string; label: string }) => (
+    <div className="text-[10px] mb-2 font-bold tracking-widest flex items-center gap-1" style={{ color: "#7c869b" }}>
+      <span>{icon}</span>
+      <span>{label}</span>
+    </div>
+  );
+
   return (
     <div className="rounded-xl ring-1 ring-white/10 px-4 py-3"
          style={{ background: "#0d1320", borderBottom: "1px solid rgba(92,242,192,0.12)" }}>
@@ -114,73 +170,81 @@ export function MissionControl() {
 
         {/* PIPELINE CONTROL */}
         <div className="col-span-12 md:col-span-3">
-          <div className="text-[10px] mb-2 font-bold tracking-widest" style={{ color: "#7c869b" }}>
-            PIPELINE
-            <Tooltip text="Control the AI agent pipeline. AUTO runs on a timer; PAUSE halts it; MANUAL TICK runs one cycle immediately." />
-          </div>
+          <SectionDivider icon="⚡" label="PIPELINE" />
           <div className="flex flex-wrap gap-2 items-center">
             <Btn id="resume" label={paused ? "▶ AUTO" : "▶ RUNNING"} onClick={handleResume} disabled={!paused} />
             <Btn id="pause"  label="⏸ PAUSE" onClick={handlePause} disabled={paused} />
             <Btn id="tick"   label="⏭ MANUAL TICK" onClick={handleTick} />
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <span style={{ color: "#7c869b" }}>TICK {tickS.toFixed(1)}s</span>
-            <input type="range" min={0.5} max={10} step={0.5} value={tickS}
-              onChange={e => handleInterval(parseFloat(e.target.value))}
-              className="flex-1 h-1 rounded accent-accent" />
-          </div>
+          <SliderRow
+            icon="⏱"
+            label="PIPELINE CADENCE"
+            subtitle="how often the agents re-evaluate"
+            value={tickS}
+            displayValue={`${tickS.toFixed(1)}s`}
+            min={0.5}
+            max={10}
+            step={0.5}
+            onChange={handleInterval}
+            accentClass="accent-accent"
+          />
         </div>
 
         {/* POLICY GATES */}
         <div className="col-span-12 md:col-span-3">
-          <div className="text-[10px] mb-2 font-bold tracking-widest" style={{ color: "#7c869b" }}>
-            POLICY GATES
-            <Tooltip text="Auto-action min confidence: tracks below this confidence require escalation. Escalate if tracks > threshold triggers mandatory human review." />
-          </div>
-          <div className="flex items-center gap-2 mb-2">
-            <span style={{ color: "#7c869b" }}>CONF ≥{minConf.toFixed(2)}</span>
-            <input type="range" min={0.5} max={0.95} step={0.05} value={minConf}
-              onChange={e => {
-                const v = parseFloat(e.target.value);
-                setMinConf(v);
-                handlePolicy(v, maxTrack);
-              }}
-              className="flex-1 h-1 rounded accent-warn" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span style={{ color: "#7c869b" }}>ESC &gt;{maxTrack}</span>
-            <input type="range" min={5} max={25} step={1} value={maxTrack}
-              onChange={e => {
-                const v = parseInt(e.target.value, 10);
-                setMaxTrack(v);
-                handlePolicy(minConf, v);
-              }}
-              className="flex-1 h-1 rounded accent-warn" />
-          </div>
+          <SectionDivider icon="⚖️" label="POLICY GATES" />
+          <SliderRow
+            icon="🎯"
+            label="AUTO-FIRE CONFIDENCE FLOOR"
+            subtitle="below this, escalate to a human"
+            value={minConf}
+            displayValue={`${Math.round(minConf * 100)}%`}
+            min={0.5}
+            max={0.95}
+            step={0.05}
+            onChange={v => {
+              setMinConf(v);
+              handlePolicy(v, maxTrack);
+            }}
+            accentClass="accent-warn"
+          />
+          <SliderRow
+            icon="🚨"
+            label="ESCALATION TRIGGER · TRACKS NEAR ASSET"
+            subtitle="if more than this many converge, escalate"
+            value={maxTrack}
+            displayValue={`${maxTrack}`}
+            min={5}
+            max={25}
+            step={1}
+            onChange={v => {
+              setMaxTrack(v);
+              handlePolicy(minConf, v);
+            }}
+            accentClass="accent-warn"
+          />
           <StatusPill ok={status["policy"] ?? null} />
         </div>
 
         {/* SCENARIO */}
         <div className="col-span-12 md:col-span-3">
-          <div className="text-[10px] mb-2 font-bold tracking-widest" style={{ color: "#7c869b" }}>
-            SCENARIO
-            <Tooltip text="START DEMO begins the scenario from time 0. RESET wipes all tracks and restarts. SPAWN ATTACK WAVE injects 4 new drones immediately." />
-          </div>
+          <SectionDivider icon="🗺" label="SCENARIO" />
           <div className="flex flex-wrap gap-2">
             <Btn id="reset" label="↻ RESET" onClick={handleReset} />
             <Btn id="wave"  label="⚡ SPAWN ATTACK WAVE" onClick={handleSpawnWave} danger />
+          </div>
+          <div className="mt-2 text-[9px]" style={{ color: "#7c869b" }}>
+            RESET wipes all tracks &amp; replays from time 0
           </div>
         </div>
 
         {/* KILL SWITCH */}
         <div className="col-span-12 md:col-span-3">
-          <div className="text-[10px] mb-2 font-bold tracking-widest" style={{ color: "#7c869b" }}>
-            OPERATOR OVERRIDE
-            <Tooltip text="KILL SWITCH immediately clears all automated assignments and sets a no-op plan. Use in emergencies to halt automated actions." />
-          </div>
+          <SectionDivider icon="🛑" label="OPERATOR OVERRIDE" />
           <Btn id="kill" label="🛑 KILL SWITCH" onClick={handleKillSwitch} danger />
           <div className="mt-1.5 text-[9px]" style={{ color: "#7c869b" }}>
             Clears all auto-actions instantly
+            <Tooltip text="KILL SWITCH immediately clears all automated assignments and sets a no-op plan. Use in emergencies to halt automated actions." />
           </div>
         </div>
       </div>

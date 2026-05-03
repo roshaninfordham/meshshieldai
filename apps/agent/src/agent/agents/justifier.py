@@ -8,7 +8,9 @@ SYSTEM = (
 "(a) snapshot field paths (e.g. 'tracks[2].pos_3d'), (b) tavily headlines (prefix 'headline:'), and "
 "(c) policy clause keys (prefix 'clause:'). Return JSON with key 'justified', a list of allocation "
 "objects each carrying a 'justification' object with arrays snapshot_refs, tavily_refs, policy_refs. "
-"Output JSON only."
+"Output JSON only. "
+"Each assignment MUST include at least one snapshot_ref and at least one policy_ref. "
+"tavily_refs may be [] if no headlines apply. Never return an assignment with all three arrays empty."
 )
 
 class Justifier:
