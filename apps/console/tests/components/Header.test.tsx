@@ -20,6 +20,22 @@ describe("Header", () => {
     expect(screen.getByText(/Software-defined counter-swarm defense/)).toBeInTheDocument();
   });
 
+  it("shows classification banner", () => {
+    render(<Header scenario="test-scenario" />);
+    expect(screen.getByText(/CLASSIFICATION: UNCLASSIFIED/)).toBeInTheDocument();
+    expect(screen.getByText(/FOR DEMO ONLY/)).toBeInTheDocument();
+  });
+
+  it("shows DEFCON pill", () => {
+    render(<Header scenario="test-scenario" />);
+    expect(screen.getByText(/DEFCON/)).toBeInTheDocument();
+  });
+
+  it("shows operator badge", () => {
+    render(<Header scenario="test-scenario" />);
+    expect(screen.getByText(/OPERATOR: Demo/)).toBeInTheDocument();
+  });
+
   it("shows idle state when no pipeline ticks", () => {
     render(<Header scenario="test-scenario" />);
     expect(screen.getByText(/idle/)).toBeInTheDocument();

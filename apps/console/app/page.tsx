@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { Header } from "@/components/Header";
 import { AirspaceCanvas } from "@/components/AirspaceCanvas";
 import { ActivityTheatre } from "@/components/ActivityTheatre";
+import { MissionControl } from "@/components/MissionControl";
 import { StackSidebar } from "@/components/StackSidebar";
 import { NlipChat } from "@/components/NlipChat";
 import { PlanPanel } from "@/components/PlanPanel";
@@ -29,9 +30,15 @@ export default function Page() {
     <main className="overflow-x-hidden" style={{ background: "#0b0f17", minHeight: "100vh" }}>
       <DemoController client={nlip} />
       <DemoNarration />
+
+      {/* Header (includes classification banner) */}
       <Header scenario={process.env.NEXT_PUBLIC_SCENARIO ?? "data-center-swarm-attack"} />
 
       <div className="p-3 flex flex-col gap-3">
+        {/* Mission Control — full width strip */}
+        <MissionControl />
+
+        {/* Escalation Banner */}
         <EscalationBanner />
 
         {/* Main body: 9/3 column split */}
@@ -43,7 +50,8 @@ export default function Page() {
           </div>
 
           {/* Right column: stack sidebar + chat + plan */}
-          <div className="col-span-12 lg:col-span-3 flex flex-col gap-3 min-h-0 lg:sticky lg:top-3 lg:self-start" style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto" }}>
+          <div className="col-span-12 lg:col-span-3 flex flex-col gap-3 min-h-0 lg:sticky lg:top-3 lg:self-start"
+               style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto" }}>
             <StackSidebar />
             <NlipChat client={nlip} />
             <PlanPanel />

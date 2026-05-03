@@ -29,6 +29,6 @@ describe("Page", () => {
     expect(screen.getByText(/RESPONSE PLAN|No plan yet/)).toBeInTheDocument();
     expect(screen.getByText(/EVENT TAPE/)).toBeInTheDocument();
     expect(screen.getByText(/COST-CURVE/)).toBeInTheDocument();
-    expect(screen.getByText(/START DEMO/)).toBeInTheDocument();
+    expect(screen.getAllByText(/START DEMO/).length).toBeGreaterThan(0);
   });
 });
