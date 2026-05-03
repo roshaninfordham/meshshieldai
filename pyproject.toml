@@ -1,0 +1,18 @@
+[project]
+name = "meshshield-ai"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = ["apps/fusion", "apps/agent", "packages/protocol"]
+
+[tool.uv.sources]
+meshshield-protocol = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "respx>=0.21",
+  "ruff>=0.7",
+]
