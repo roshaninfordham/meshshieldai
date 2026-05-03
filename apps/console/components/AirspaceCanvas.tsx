@@ -1,13 +1,19 @@
 "use client";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMeshStore } from "@/lib/store";
 
 // Static scenario data (matches packages/scenarios/data-center-swarm-attack.json)
+// Interceptors are rendered at fixed clock positions (12, 3, 6, 9 o'clock) around the asset
+// for visual clarity — actual scenario coords don't matter for the demo display.
+const INTERCEPTOR_ANGLES = [0, 90, 180, 270]; // degrees from top (12, 3, 6, 9 o'clock)
+const INTERCEPTOR_RADIUS = 120; // metres from asset — pushed out so labels never overlap asset
+
 const INTERCEPTORS = [
-  { id: "i-001", kind: "rf_jam",  pos: [-50, -10], range: 250 },
-  { id: "i-002", kind: "kinetic", pos: [50,  -10], range: 300 },
-  { id: "i-003", kind: "spoof",   pos: [-10,  60], range: 180 },
-  { id: "i-004", kind: "rf_jam",  pos: [10,   60], range: 250 },
+  { id: "i-001", kind: "rf_jam",  range: 250, angleIdx: 0 },
+  { id: "i-002", kind: "kinetic", range: 300, angleIdx: 1 },
+  { id: "i-003", kind: "spoof",   range: 180, angleIdx: 2 },
+  { id: "i-004", kind: "rf_jam",  range: 250, angleIdx: 3 },
 ] as const;
 
 const ASSET = { name: "Hyperscaler DC East", pos: [0, 0] as [number, number], radius: 60 };
@@ -17,6 +23,12 @@ const MODE_COLOR: Record<string, string> = {
   rf_jam:  "#4facfe",
   kinetic: "#ff5c5c",
   spoof:   "#c084fc",
+};
+
+const MODE_LABEL: Record<string, string> = {
+  rf_jam:  "RF Jammer",
+  kinetic: "Kinetic",
+  spoof:   "Spoofer",
 };
 
 const TRAIL_LEN = 10;
@@ -36,6 +48,28 @@ function formatUtcTime(d: Date): string {
   return d.toUTCString().replace(/.*(\d\d:\d\d:\d\d) GMT/, "$1");
 }
 
+/** Compute interceptor SVG position from angle + radius */
+function interceptorPos(angleIdx: number, assetX: number, assetY: number, radius: number): [number, number] {
+  const angleDeg = INTERCEPTOR_ANGLES[angleIdx];
+  const rad = (angleDeg - 90) * Math.PI / 180; // -90 so 0° = top
+  return [
+    assetX + Math.cos(rad) * radius,
+    assetY + Math.sin(rad) * radius,
+  ];
+}
+
+/** Label offset for interceptor based on angle: outside the asset */
+function interceptorLabelAnchor(angleIdx: number): { anchor: "start" | "middle" | "end"; dx: number; dy: number } {
+  const angle = INTERCEPTOR_ANGLES[angleIdx];
+  if (angle === 0)   return { anchor: "middle", dx:  0, dy: -22 }; // top → label above
+  if (angle === 90)  return { anchor: "start",  dx: 18, dy:   4 }; // right → label right
+  if (angle === 180) return { anchor: "middle", dx:  0, dy:  30 }; // bottom → label below
+  return               { anchor: "end",    dx: -18, dy:   4 }; // left → label left
+}
+
+// Welcome / help modal state lives outside component to avoid re-render loops
+let _helpModalOpen = false;
+
 export function AirspaceCanvas() {
   const tracks    = useMeshStore((s) => s.tracks);
   const plan      = useMeshStore((s) => s.plan) as any;
@@ -47,6 +81,12 @@ export function AirspaceCanvas() {
   const [locked, setLocked] = useState(false);
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const svgRef  = useRef<SVGSVGElement>(null);
+
+  // Help modal
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  // Tooltip state
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
   // Clock
   const [clock, setClock] = useState(() => formatUtcTime(new Date()));
@@ -86,6 +126,9 @@ export function AirspaceCanvas() {
 
   const [ax, ay] = toSvg(ASSET.pos[0], ASSET.pos[1]);
   const assetRadius = (ASSET.radius / W) * SVG_SIZE;
+  // Interceptor SVG radius (in SVG units)
+  const intSvgRadius = (INTERCEPTOR_RADIUS / W) * SVG_SIZE;
+
   const underThreat = tracks.some((t: any) => {
     const dx = t.pos_3d[0] - ASSET.pos[0];
     const dy = t.pos_3d[1] - ASSET.pos[1];
@@ -140,6 +183,15 @@ export function AirspaceCanvas() {
 
   const transform = `translate(${pz.tx}px, ${pz.ty}px) scale(${pz.scale})`;
 
+  // Show tooltip on SVG element hover
+  const showTooltip = useCallback((e: React.MouseEvent, text: string) => {
+    setTooltip({ x: e.clientX, y: e.clientY, text });
+  }, []);
+  const moveTooltip = useCallback((e: React.MouseEvent) => {
+    setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null);
+  }, []);
+  const hideTooltip = useCallback(() => setTooltip(null), []);
+
   return (
     <div
       className={`h-[560px] rounded-xl overflow-hidden ring-1 ring-white/10 transition-shadow duration-300 ${hlClass} relative select-none`}
@@ -183,6 +235,17 @@ export function AirspaceCanvas() {
         </div>
       </div>
 
+      {/* ❓ Help button — top right (above zoom controls) */}
+      <button
+        onClick={() => setHelpOpen(true)}
+        className="absolute top-12 right-14 z-20 w-8 h-8 rounded font-mono text-sm font-bold flex items-center justify-center"
+        style={{ background: "rgba(252,176,69,0.15)", color: "#fcb045",
+                 border: "1px solid rgba(252,176,69,0.4)" }}
+        title="What am I looking at?"
+      >
+        ❓
+      </button>
+
       {/* Threat badge */}
       {underThreat && (
         <div className="absolute top-12 left-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono font-bold text-sm animate-pulse"
@@ -191,16 +254,35 @@ export function AirspaceCanvas() {
         </div>
       )}
 
-      {/* Legend strip */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 flex gap-4 px-4 py-1.5 text-[10px] font-mono"
-           style={{ background: "rgba(11,15,23,0.92)", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ color: "#5cf2c0" }}>● real</span>
-        <span style={{ color: "#fcb045" }}>● simulated</span>
-        <span style={{ color: "#4facfe" }}>▲ rf_jam</span>
-        <span style={{ color: "#ff5c5c" }}>▲ kinetic</span>
-        <span style={{ color: "#c084fc" }}>▲ spoof</span>
-        <span style={{ color: "#ff5c5c" }}>⬡ protected asset</span>
-        <span className="ml-auto" style={{ color: "#7c869b" }}>DRAG TO PAN · SCROLL TO ZOOM · +/− KEYS</span>
+      {/* Always-visible legend panel — top left */}
+      <div className="absolute z-20 text-[10px] font-mono leading-relaxed"
+           style={{
+             top: "44px", left: "8px",
+             background: "rgba(11,15,23,0.88)",
+             border: "1px solid rgba(255,255,255,0.1)",
+             borderRadius: "8px",
+             padding: "8px 10px",
+             color: "#c0cad9",
+             minWidth: "190px",
+             pointerEvents: "none",
+           }}>
+        <div className="font-bold mb-1" style={{ color: "#5cf2c0" }}>🛡 LEGEND</div>
+        <div><span style={{ color: "#5cf2c0" }}>●</span> Real drone (sensor detection)</div>
+        <div><span style={{ color: "#fcb045" }}>●</span> Simulated drone (drill data)</div>
+        <div><span style={{ color: "#4facfe" }}>▲</span> RF jammer interceptor</div>
+        <div><span style={{ color: "#ff5c5c" }}>▲</span> Kinetic interceptor</div>
+        <div><span style={{ color: "#c084fc" }}>▲</span> Spoof interceptor</div>
+        <div><span style={{ color: "#ff5c5c" }}>⬢</span> Protected asset (data center)</div>
+        <div><span style={{ color: "#fcb045" }}>- -</span> Active assignment</div>
+        <div><span style={{ color: "#fcb045" }}>◯</span> Drone being engaged</div>
+      </div>
+
+      {/* Help footer (bottom-RIGHT, away from legend) */}
+      <div className="absolute bottom-0 right-0 z-20 px-4 py-1.5 text-[9px] font-mono"
+           style={{ background: "rgba(11,15,23,0.85)", borderTop: "1px solid rgba(255,255,255,0.05)",
+                    borderLeft: "1px solid rgba(255,255,255,0.05)", borderTopLeftRadius: "6px",
+                    color: "#7c869b" }}>
+        DRAG TO PAN · SCROLL TO ZOOM · +/− KEYS
       </div>
 
       {/* SVG canvas with transform wrapper */}
@@ -219,6 +301,7 @@ export function AirspaceCanvas() {
               .dash-line2 { stroke-dasharray:10 5; animation:dash-anim2 0.5s linear infinite; }
               .asset-ring-ok { animation:pulse-ring2 2.5s ease-in-out infinite; }
               .asset-ring-threat { animation:pulse-threat 0.7s ease-in-out infinite; }
+              .svg-label { text-shadow: 0 1px 3px #000, 0 0 6px #000; }
             `}</style>
             {/* Compass tick marks */}
             <g id="compass-rose">
@@ -269,13 +352,20 @@ export function AirspaceCanvas() {
           {/* Compass rose (bottom-left corner) */}
           <g transform={`translate(38, ${SVG_SIZE - 38})`}>
             <use href="#compass-rose" />
-            {/* Crosshair lines */}
             <line x1={-20} y1={0} x2={20} y2={0} stroke="rgba(92,242,192,0.2)" strokeWidth="0.8"/>
             <line x1={0} y1={-20} x2={0} y2={20} stroke="rgba(92,242,192,0.2)" strokeWidth="0.8"/>
           </g>
 
           {/* Asset — big red hexagon */}
-          <AssetHex cx={ax} cy={ay} size={40} />
+          <g
+            style={{ cursor: "pointer" }}
+            onMouseEnter={e => showTooltip(e, "🔴 Protected Asset: Hyperscaler DC East\nThis data center is the mission objective — keep all drones out of the perimeter.")}
+            onMouseMove={moveTooltip}
+            onMouseLeave={hideTooltip}
+          >
+            <title>Protected Asset: Hyperscaler DC East — data center perimeter</title>
+            <AssetHex cx={ax} cy={ay} size={40} />
+          </g>
           {/* Pulsing perimeter ring */}
           <circle cx={ax} cy={ay} r={assetRadius + 5} fill="none"
                   stroke="#ff5c5c" strokeWidth="2"
@@ -283,28 +373,47 @@ export function AirspaceCanvas() {
                   strokeOpacity="0.7" />
           <text x={ax} y={ay - 48} textAnchor="middle" fill="#ff5c5c" fontSize="11"
                 fontFamily="monospace" fontWeight="bold"
+                className="svg-label"
                 style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>
             🏢 HYPERSCALER DC EAST · PROTECTED ASSET
           </text>
 
-          {/* Interceptors — bigger triangles */}
+          {/* Interceptors — distributed at clock positions around asset */}
           {INTERCEPTORS.map(int => {
-            const [ix, iy] = toSvg(int.pos[0], int.pos[1]);
+            const [ix, iy] = interceptorPos(int.angleIdx, ax, ay, intSvgRadius);
             const col = MODE_COLOR[int.kind] ?? "#aaa";
+            const lbl = interceptorLabelAnchor(int.angleIdx);
+            const tooltipText = `🛡 Interceptor ${int.id} — ${MODE_LABEL[int.kind] ?? int.kind}\nRange: ${int.range}m · Stationed at ${["12 o'clock","3 o'clock","6 o'clock","9 o'clock"][int.angleIdx]} position`;
+
             return (
-              <g key={int.id}>
+              <g key={int.id}
+                 style={{ cursor: "pointer" }}
+                 onMouseEnter={e => showTooltip(e, tooltipText)}
+                 onMouseMove={moveTooltip}
+                 onMouseLeave={hideTooltip}>
+                <title>{tooltipText}</title>
+                {/* Subtle line from interceptor to asset center */}
+                <line x1={ix} y1={iy} x2={ax} y2={ay}
+                      stroke={col} strokeWidth="0.8" strokeOpacity="0.15" strokeDasharray="4 6" />
                 <InterceptorTriangle cx={ix} cy={iy} color={col} size={14} />
-                <rect x={ix - 52} y={iy + 18} width={104} height={17} rx="3"
-                      fill="rgba(11,15,23,0.75)" stroke={col} strokeWidth="0.6" strokeOpacity="0.5"/>
-                <text x={ix} y={iy + 30} textAnchor="middle" fill={col}
-                      fontSize="9" fontFamily="monospace" fontWeight="bold">
-                  🛡 {int.id} · {int.kind} · {int.range}m range
+                {/* Label outside asset — angle-positioned so no overlap */}
+                <rect x={ix + lbl.dx - (lbl.anchor === "middle" ? 56 : lbl.anchor === "start" ? 2 : 112)} y={iy + lbl.dy - 14} width={110} height={26} rx="3"
+                      fill="rgba(11,15,23,0.82)" stroke={col} strokeWidth="0.6" strokeOpacity="0.5"/>
+                <text x={ix + lbl.dx} y={iy + lbl.dy} textAnchor={lbl.anchor} fill={col}
+                      fontSize="9" fontFamily="monospace" fontWeight="bold"
+                      className="svg-label">
+                  🛡 {int.id}
+                </text>
+                <text x={ix + lbl.dx} y={iy + lbl.dy + 11} textAnchor={lbl.anchor} fill={col}
+                      fontSize="8" fontFamily="monospace" opacity="0.8"
+                      className="svg-label">
+                  {MODE_LABEL[int.kind]} · {int.range}m
                 </text>
               </g>
             );
           })}
 
-          {/* Assignment lines — thicker animated */}
+          {/* Assignment lines — thicker animated dashed */}
           {assignments.map((a: any) => {
             const targetId = a.target_id ?? a.track_id;
             const intId    = a.interceptor_id;
@@ -312,7 +421,7 @@ export function AirspaceCanvas() {
             const int_     = INTERCEPTORS.find(i => i.id === intId);
             if (!track || !int_) return null;
             const [tx2, ty2] = toSvg(track.pos_3d[0], track.pos_3d[1]);
-            const [ix2, iy2] = toSvg(int_.pos[0], int_.pos[1]);
+            const [ix2, iy2] = interceptorPos(int_.angleIdx, ax, ay, intSvgRadius);
             const mx = (tx2 + ix2) / 2, my = (ty2 + iy2) / 2;
             const col = MODE_COLOR[a.mode ?? int_.kind] ?? "#fcb045";
             return (
@@ -320,10 +429,11 @@ export function AirspaceCanvas() {
                 <line x1={ix2} y1={iy2} x2={tx2} y2={ty2}
                       stroke={col} strokeWidth="2.5" strokeOpacity="0.75"
                       className="dash-line2" />
-                <rect x={mx - 22} y={my - 10} width={44} height={13} rx="2"
-                      fill="rgba(11,15,23,0.8)" />
+                <rect x={mx - 28} y={my - 10} width={56} height={14} rx="2"
+                      fill="rgba(11,15,23,0.85)" />
                 <text x={mx} y={my} textAnchor="middle" fill={col}
-                      fontSize="8.5" fontFamily="monospace" fontWeight="bold">
+                      fontSize="8.5" fontFamily="monospace" fontWeight="bold"
+                      className="svg-label">
                   {a.mode ?? int_.kind}
                 </text>
               </g>
@@ -341,14 +451,29 @@ export function AirspaceCanvas() {
             const dx = t.pos_3d[0] - ASSET.pos[0];
             const dy = t.pos_3d[1] - ASSET.pos[1];
             const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+            const speed = t.vel ? Math.round(Math.sqrt(t.vel[0]**2 + t.vel[1]**2) * 10) / 10 : 0;
 
             // Velocity vector
             const vx = t.vel?.[0] ?? 0, vy = t.vel?.[1] ?? 0;
             const vScale = 3;
             const [vtx, vty] = toSvg(t.pos_3d[0] + vx * vScale, t.pos_3d[1] + vy * vScale);
 
+            // Label placement: close to asset → label above with stem; far → label to right
+            const closeToAsset = dist < 80;
+            const labelX = closeToAsset ? tx2 : tx2 + 16;
+            const labelY = closeToAsset ? ty2 - 30 : ty2 - 5;
+            const labelAnchor = closeToAsset ? "middle" : "start";
+
+            const tooltipText = `${isReal ? "🟢 Real drone" : "🟡 Simulated drone"}: Track ${t.id.toUpperCase()}\n${conf}% confidence · ${dist}m from asset · ${speed > 0 ? `closing at ${speed} m/s` : "stationary"}${isAssigned ? "\n⚡ Actively engaged by interceptor" : ""}`;
+
             return (
-              <g key={t.id}>
+              <g key={t.id}
+                 style={{ cursor: "pointer" }}
+                 onMouseEnter={e => showTooltip(e, tooltipText)}
+                 onMouseMove={moveTooltip}
+                 onMouseLeave={hideTooltip}>
+                <title>{tooltipText}</title>
+
                 {/* Trail */}
                 {trail.slice(0, -1).map(([px, py]: [number, number], i: number) => {
                   const [spx, spy] = toSvg(px, py);
@@ -362,26 +487,33 @@ export function AirspaceCanvas() {
                         stroke={col} strokeWidth="1.2" strokeOpacity="0.5" />
                 )}
 
-                {/* Assignment ring */}
+                {/* Assignment engagement ring */}
                 {isAssigned && (
                   <circle cx={tx2} cy={ty2} r={16} fill="none"
                           stroke="#fcb045" strokeWidth="2" strokeOpacity="0.85"
                           strokeDasharray="4 3" />
                 )}
 
-                {/* Drone icon — bigger */}
+                {/* Drone icon */}
                 <DroneIcon cx={tx2} cy={ty2} color={col} size={11} />
 
+                {/* Stem line when label is above (close to asset) */}
+                {closeToAsset && (
+                  <line x1={tx2} y1={ty2 - 14} x2={tx2} y2={ty2 - 24}
+                        stroke={col} strokeWidth="1" strokeOpacity="0.5" />
+                )}
+
                 {/* Label box */}
-                <rect x={tx2 + 16} y={ty2 - 16} width={72} height={32} rx="3"
-                      fill="rgba(11,15,23,0.78)" />
-                <text x={tx2 + 20} y={ty2 - 5} fill={col}
+                <rect x={closeToAsset ? tx2 - 40 : tx2 + 14} y={labelY - 12} width={78} height={28} rx="3"
+                      fill="rgba(11,15,23,0.82)" />
+                <text x={labelX} y={labelY} textAnchor={labelAnchor} fill={col}
                       fontSize="9.5" fontFamily="monospace" fontWeight="bold"
-                      style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.9))" }}>
+                      className="svg-label">
                   {t.id.toUpperCase()} {conf}%
                 </text>
-                <text x={tx2 + 20} y={ty2 + 8} fill="#7c869b"
-                      fontSize="8.5" fontFamily="monospace">
+                <text x={labelX} y={labelY + 12} textAnchor={labelAnchor} fill="#7c869b"
+                      fontSize="8.5" fontFamily="monospace"
+                      className="svg-label">
                   {dist}m to asset
                 </text>
               </g>
@@ -397,6 +529,86 @@ export function AirspaceCanvas() {
           )}
         </svg>
       </div>
+
+      {/* Floating cursor tooltip */}
+      <AnimatePresence>
+        {tooltip && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="fixed z-[999] pointer-events-none text-[11px] font-mono leading-snug whitespace-pre-line"
+            style={{
+              left: tooltip.x + 14,
+              top: tooltip.y - 8,
+              background: "rgba(13,19,32,0.96)",
+              border: "1px solid rgba(92,242,192,0.3)",
+              borderRadius: "6px",
+              padding: "6px 10px",
+              color: "#c0cad9",
+              maxWidth: "260px",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
+            }}
+          >
+            {tooltip.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Help modal */}
+      <AnimatePresence>
+        {helpOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+            onClick={() => setHelpOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 16 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              className="rounded-xl text-sm font-mono leading-relaxed"
+              style={{
+                background: "#0d1320",
+                border: "1px solid rgba(92,242,192,0.25)",
+                padding: "24px 28px",
+                maxWidth: "480px",
+                width: "90%",
+                color: "#c0cad9",
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="text-base font-bold mb-4" style={{ color: "#5cf2c0" }}>❓ What am I looking at?</div>
+              <div className="flex flex-col gap-2 text-[12px]">
+                <div><span style={{ color: "#5cf2c0" }}>● Green X-icon</span> — Real drone detected by a live sensor. The confidence % shows how sure the system is.</div>
+                <div><span style={{ color: "#fcb045" }}>● Yellow X-icon</span> — Simulated/drill drone from scenario data (not a real threat in this demo).</div>
+                <div><span style={{ color: "#4facfe" }}>▲ Blue triangle</span> — RF Jammer interceptor. Disrupts drone communications &amp; navigation.</div>
+                <div><span style={{ color: "#ff5c5c" }}>▲ Red triangle</span> — Kinetic interceptor. Physical intercept (net, projectile).</div>
+                <div><span style={{ color: "#c084fc" }}>▲ Purple triangle</span> — GPS Spoofer interceptor. Sends false GPS signals to mislead the drone.</div>
+                <div><span style={{ color: "#ff5c5c" }}>⬢ Red hexagon</span> — The protected asset (data center). If drones enter this perimeter, threat is imminent.</div>
+                <div><span style={{ color: "#fcb045" }}>- - - dashed line</span> — Active assignment: this interceptor is engaging this drone right now.</div>
+                <div><span style={{ color: "#fcb045" }}>◯ Yellow ring</span> — The drone inside this ring is currently being engaged.</div>
+                <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "#7c869b" }}>
+                  Range rings (50m, 100m, 200m) show the asset&apos;s defensive perimeters. The compass shows orientation.
+                </div>
+              </div>
+              <button
+                onClick={() => setHelpOpen(false)}
+                className="mt-5 w-full py-2 rounded font-bold text-sm"
+                style={{ background: "rgba(92,242,192,0.12)", color: "#5cf2c0",
+                         border: "1px solid rgba(92,242,192,0.3)" }}
+              >
+                Got it ✓
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
