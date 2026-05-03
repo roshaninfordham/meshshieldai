@@ -17,3 +17,7 @@ dev = [
   "respx>=0.21",
   "ruff>=0.7",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "apps/fusion/tests", "apps/agent/tests", "packages/protocol/tests"]
+asyncio_mode = "auto"
