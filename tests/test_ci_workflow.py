@@ -3,7 +3,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def test_ci_workflow_runs_lint_test_typecheck():
+def test_ci_workflow_has_python_and_node_jobs():
     cfg = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     job_names = list(cfg["jobs"].keys())
     assert "python" in job_names
